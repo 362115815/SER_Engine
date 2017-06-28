@@ -12,7 +12,7 @@ os.environ['CUDA_VISIBLE_DEVICES']='10,15'
 class CDataSet():
 	def __init__(self,data,labels,shuffle=False):
 		if len(data)==0 or len(data)!=len(labels):
-			raise ValueError('data为空或data与label长度不匹配')
+			raise ValueError('data为空或data与label长度不匹�?)
 		self.data=data
 		self.labels=labels
 		self.batch_id = 0
@@ -38,14 +38,14 @@ class CDataSet():
 rootdir='/data/mm0105.chen/wjhan/xiaomin'
 feadir=rootdir + '/feature'
 logdir=rootdir+'/log'
-
+modeldir=rootdir+'/model'
 emo_classes={'anger':0,'elation':1,'neutral':2,'panic':3,'sadness':4}
 
 now=datetime.datetime.now()
 
 # 输出重定向到文本
 savedStdout=sys.stdout
-fin=open(logdir+'/'+now.strftime('%Y-%m-%d %H:%M:%S')+'.log','w+')
+fin=open(logdir+'/'+now.strftime('%Y-%m-%d_%H:%M:%S')+'.log','w+')
 sys.stdout=fin
 
 print('*********************************************')
@@ -76,8 +76,12 @@ acc_train_cv=np.zeros(set_num) # 每次CV 时train_set的准确率
 
 for i in range(set_num):        
 	print('Begin CV %d :' %(i))
+        cv_now=datetime.datetime.now()
+        cv_dir=modeldir+'/'+cv_now.strftime('%Y-%m-%d_%H_%M_%S')+'_cv'+str(i)
+        os.system('mkdir '+ cv_dir)
 
 	#create val_set,val_label,train_set,train_label
+
 	val_set=[]
 	val_labels=[]
 	train_set=[]
@@ -102,16 +106,16 @@ for i in range(set_num):
 	train_set=np.array(train_set)
 	train_labels=np.array(train_labels)
 
-        epoch_num=1000
+  epoch_num=1000
 	batch_size=64
-        learning_rate=0.001
-        hidden_layer=[1024]
+  learning_rate=0.001
+  hidden_layer=[1024]
 
 	hidden_layer_num= len(hidden_layer)
 	in_node_num=fea_dim
 	out_node_num=class_num
 
-        W=[]
+  W=[]
 	b=[]
 
 
@@ -127,6 +131,18 @@ for i in range(set_num):
 		net_struct.append(item)
 
 	net_struct.append(out_node_num)
+        
+        # 输出网络结构
+        net_print='------网络结构------\n'
+        net_print+='网络类型:MLP\n'
+        net_print+='网络结构:'
+        
+        for net_struct_it in range(len(net_struct)-1):
+            net_print+=str(net_struct[net_struct_it])
+            net_print+=':'
+        net_print+=str(net_struct[-1])
+        net_print+='\n--------------------'
+        print(net_print)
 
 	net_depth=len(net_struct)
 
@@ -161,13 +177,24 @@ for i in range(set_num):
 	train_set=(train_set-mu)/sigma
 	val_set=(val_set-mu)/sigma
 
+        print('Normalize:z-score')
+        
+        print('Train_entry:%d'% len(train_set))
+        print('val_set:%d'% len(val_set))
+
+
+
 	#run epoch
+  saver = tf.train.Saver()
+
 	train_data=CDataSet(train_set,train_labels)
 	with tf.Session() as sess:
 		sess.run(init)
 		avg_cost = np.zeros(epoch_num)
 		acc_val = np.zeros(epoch_num)
 		acc_train = np.zeros(epoch_num)
+    modelpath=cv_dir+'/model.ckpt'
+    saver.save(sess,modelpath,global_step=0,max_to_keep=None)      
 		for epoch in range(epoch_num):
 			print("\nStrart Epoch %d traing:" % (epoch))
 			batch_num = 0
@@ -183,10 +210,11 @@ for i in range(set_num):
 			acc_val[epoch] = sess.run(accuracy, feed_dict={x: val_set, y_: val_labels})
 			acc_train[epoch] = sess.run(accuracy, feed_dict={x: train_set, y_: train_labels})
 			print('Epoch %d finished' % (epoch))
+                        rt = saver.save(sess,modelpath)
 			print('\tavg_cost = %f' % (avg_cost[epoch]))
 			print('\tacc_train = %f' % (acc_train[epoch]))
 			print('\tacc_val = %f' % (acc_val[epoch]))
-
+                        print('model saved in %s'%(rt))
 
 	acc_val_cv[i]=acc_val[np.argmax(acc_val)]
 	acc_train_cv[i]=acc_train[np.argmax(acc_val)]
