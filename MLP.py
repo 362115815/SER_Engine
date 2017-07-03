@@ -241,9 +241,6 @@ for i in range(set_num):
                 modelpath=cv_dir+'/modelinit.ckpt'
                 saver.save(sess,modelpath,global_step=0)      
         	for epoch in range(epoch_num):
-                epoch=0
-                While True:
-                        epoch=epoch+1
 			print("\nStrart Epoch %d traing:" % (epoch))
                         modelpath=cv_dir+'/model'+str(epoch)+'.ckpt'
 			batch_num = 0
@@ -267,7 +264,6 @@ for i in range(set_num):
                                 rt = saver.save(sess,modelpath)
                                 acc_val_max=acc_val[epoch]
                                 print('model saved in %s'%(rt))
-                        if acc_train[epoch]
 	acc_val_cv[i]=acc_val[np.argmax(acc_val)]
 	acc_train_cv[i]=acc_train[np.argmax(acc_val)]
 
