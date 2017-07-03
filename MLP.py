@@ -9,11 +9,12 @@ import datetime
 
 os.environ['CUDA_VISIBLE_DEVICES']='10,15'
 
+
 class CDataSet():
 	def __init__(self,data,labels,shuffle=False):
 		if len(data)==0 or len(data)!=len(labels):
-			raise ValueError('data涓虹┖鎴杁ata涓巐abel闀垮害涓嶅尮閰?)
-		self.data=data
+			raise ValueError('data为空或data与label长度不匹配')
+        	self.data=data
 		self.labels=labels
 		self.batch_id = 0
 		self.is_shuffle=shuffle
@@ -21,7 +22,7 @@ class CDataSet():
 		c=list(zip(self.data,self.labels))
 		random.shuffle(c)
 		self.data[:],self.labels[:]=zip(*c)
-	def next_batch(self, batch_size): # 濡傛灉鍒拌揪鏈熬锛屽垯鎶奲atch_size杩斿洖0锛屽惁鍒欒繑鍥炴墍璇诲彇鐨刡atch_size
+	def next_batch(self, batch_size): # 如果到达末尾，则把batch_size返回0，否则返回所读取的batch_size
 		""" Return a batch of data. When dataset end is reached, start over.
 		"""
 		if self.batch_id == len(self.data):
@@ -30,10 +31,12 @@ class CDataSet():
 		if(self.batch_id==0):
 			if self.is_shuffle==True:
 				self._shuffle()
-		batch_data = (self.data[self.batch_id:min(self.batch_id +                                                  batch_size, len(self.data))])
+		batch_data = (self.data[self.batch_id:min(self.batch_id + batch_size, len(self.data))])
 		batch_labels = (self.labels[self.batch_id:min(self.batch_id +batch_size, len(self.data))])
 		self.batch_id = min(self.batch_id + batch_size, len(self.data))
 		return batch_data, batch_labels,batch_size
+
+#setting path
 
 rootdir='/data/mm0105.chen/wjhan/xiaomin'
 feadir=rootdir + '/feature'
@@ -41,12 +44,33 @@ logdir=rootdir+'/log'
 modeldir=rootdir+'/model'
 emo_classes={'anger':0,'elation':1,'neutral':2,'panic':3,'sadness':4}
 
+#read gender info
+# 读入性别信息
+fin = open(rootdir+"/feature/speakerInfo.txt", "r")
+speakerInfo = fin.readlines()
+fin.close()
+genderInfo = {}
+for item in speakerInfo:
+    item = item.rstrip("\r\n")
+    name, gender = item.split("\t")
+    genderInfo[name] = gender
+
+
+
+#config
+no_paragraph=1
+gender_include = 'Male'
+output_log=0
+
+
+
 now=datetime.datetime.now()
 
-# 杈撳嚭閲嶅畾鍚戝埌鏂囨湰
-savedStdout=sys.stdout
-fin=open(logdir+'/'+now.strftime('%Y-%m-%d_%H:%M:%S')+'.log','w+')
-sys.stdout=fin
+if output_log==1:
+    # 标准输入输出重定向到文本
+    savedStdout=sys.stdout
+    fin=open(logdir+'/'+now.strftime('%Y-%m-%d_%H:%M:%S')+'.log','w+')
+    sys.stdout=fin
 
 print('*********************************************')
 print('****** Run MLP.py %s *******' %(now.strftime('%Y-%m-%d %H:%M:%S')))
@@ -70,13 +94,13 @@ for i in range(set_num):
 
 #CV
 
-acc_val_cv = np.zeros(set_num) # 姣忔CV 鏃秜al_set鐨勫噯纭巼
-acc_train_cv=np.zeros(set_num) # 姣忔CV 鏃秚rain_set鐨勫噯纭巼
+acc_val_cv = np.zeros(set_num) # 每次CV 时val_set的准确率
+acc_train_cv=np.zeros(set_num) # 每次CV 时train_set的准确率
 
+cv_now=datetime.datetime.now()
 
 for i in range(set_num):        
 	print('Begin CV %d :' %(i))
-        cv_now=datetime.datetime.now()
         cv_dir=modeldir+'/'+cv_now.strftime('%Y-%m-%d_%H_%M_%S')+'_cv'+str(i)
         os.system('mkdir '+ cv_dir)
 
@@ -89,8 +113,14 @@ for i in range(set_num):
 
 	for j in range(set_num):
 		for item in data_set[j]:
+                        if no_paragraph==1:
+                            if 'paragraph' in item:
+                                continue
+			name=item.lstrip("\'").split("_",1)[0]
 			temp = item.split(',')
-			fea=[float(index) for index in temp[1:-1]]
+                        if genderInfo[name] not in gender_include:
+                            continue
+                        fea=[float(index) for index in temp[1:-1]]
 			label=np.zeros(class_num)
 			label[emo_classes[temp[-1].replace('\n','')]]=1
 			if j==i:	
@@ -106,16 +136,16 @@ for i in range(set_num):
 	train_set=np.array(train_set)
 	train_labels=np.array(train_labels)
 
-  epoch_num=1000
-	batch_size=64
-  learning_rate=0.001
-  hidden_layer=[1024]
+        epoch_num=1024
+        batch_size=8
+        learning_rate=0.001
+        hidden_layer=[256,128,128]
 
 	hidden_layer_num= len(hidden_layer)
 	in_node_num=fea_dim
 	out_node_num=class_num
 
-  W=[]
+        W=[]
 	b=[]
 
 
@@ -132,10 +162,10 @@ for i in range(set_num):
 
 	net_struct.append(out_node_num)
         
-        # 杈撳嚭缃戠粶缁撴瀯
-        net_print='------缃戠粶缁撴瀯------\n'
-        net_print+='缃戠粶绫诲瀷:MLP\n'
-        net_print+='缃戠粶缁撴瀯:'
+        # 输出网络信息
+        net_print='------网络信息------\n'
+        net_print+='网络类型:MLP\n'
+        net_print+='网络结构:'
         
         for net_struct_it in range(len(net_struct)-1):
             net_print+=str(net_struct[net_struct_it])
@@ -180,12 +210,16 @@ for i in range(set_num):
         print('Normalize:z-score')
         
         print('Train_entry:%d'% len(train_set))
-        print('val_set:%d'% len(val_set))
-
-
-
+        print('Val_entry:%d'% len(val_set))
+        print('Batch_size:%d'%(batch_size))
+        print('Gender_include:%s' %(gender_include))
+        if no_paragraph==1:
+            print('no_paragraph:True')
+        
 	#run epoch
-  saver = tf.train.Saver()
+
+        saver = tf.train.Saver()
+        acc_val_max =-1
 
 	train_data=CDataSet(train_set,train_labels)
 	with tf.Session() as sess:
@@ -193,10 +227,11 @@ for i in range(set_num):
 		avg_cost = np.zeros(epoch_num)
 		acc_val = np.zeros(epoch_num)
 		acc_train = np.zeros(epoch_num)
-    modelpath=cv_dir+'/model.ckpt'
-    saver.save(sess,modelpath,global_step=0,max_to_keep=None)      
+                modelpath=cv_dir+'/modelinit.ckpt'
+                saver.save(sess,modelpath,global_step=0)      
 		for epoch in range(epoch_num):
 			print("\nStrart Epoch %d traing:" % (epoch))
+                        modelpath=cv_dir+'/model'+str(epoch)+'.ckpt'
 			batch_num = 0
 			while True:
 				batch = train_data.next_batch(batch_size)
@@ -210,11 +245,13 @@ for i in range(set_num):
 			acc_val[epoch] = sess.run(accuracy, feed_dict={x: val_set, y_: val_labels})
 			acc_train[epoch] = sess.run(accuracy, feed_dict={x: train_set, y_: train_labels})
 			print('Epoch %d finished' % (epoch))
-                        rt = saver.save(sess,modelpath)
 			print('\tavg_cost = %f' % (avg_cost[epoch]))
 			print('\tacc_train = %f' % (acc_train[epoch]))
-			print('\tacc_val = %f' % (acc_val[epoch]))
-                        print('model saved in %s'%(rt))
+                        print('\tacc_val = %f' % (acc_val[epoch]))
+                        if  acc_val_max< acc_val[epoch]:
+                            rt = saver.save(sess,modelpath)
+                            acc_val_max=acc_val[epoch]
+                            print('model saved in %s'%(rt))
 
 	acc_val_cv[i]=acc_val[np.argmax(acc_val)]
 	acc_train_cv[i]=acc_train[np.argmax(acc_val)]
@@ -223,14 +260,13 @@ for i in range(set_num):
         print('acc_val on cv %d = %f' % (i,acc_val_cv[i]))
 
 	print('CV %d finish ' % (i))
-        break
-print('CV finished.\n avg_acc_train=%f,avg_acc_val=%f'%(np.average(acc_train_cv),np.average(acc_val_cv)))
+print('CV finished.\navg_acc_train=%f,avg_acc_val=%f'%(np.average(acc_train_cv),np.average(acc_val_cv)))
     
-
-#鎭㈠鏍囧噯杈撳嚭娴佸苟鍏抽棴鏂囦欢
-sys.stdout=savedStdout
-fin.close()
-
+if output_log==1:
+    # 恢复标准输入输出
+    sys.stdout=savedStdout
+    fin.close()
+print('Training finished.')
 
 
 		

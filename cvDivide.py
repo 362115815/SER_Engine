@@ -4,9 +4,9 @@
 from numpy import zeros
 import random
 
-rootdir = 'D:/xiaomin'
+rootdir = '/data/mm0105.chen/wjhan/xiaomin'
 
-# è¯»å…¥æ€§åˆ«ä¿¡æ¯
+# ¶ÁÈëĞÔ±ğĞÅÏ¢
 fin = open(rootdir+"/feature/speakerInfo.txt", "r")
 speakerInfo = fin.readlines()
 fin.close()
@@ -17,7 +17,7 @@ for item in speakerInfo:
     genderInfo[name] = gender
 
 
-# è¯»å…¥ç‰¹å¾æ•°æ®
+# ¶ÁÈëÌØÕ÷Êı¾İ
 fin = open(rootdir+"/feature/manAffSpch.arff","r")
 feadata = fin.readlines()
 fin.close()
@@ -28,7 +28,7 @@ feadata = feadata[index+2:]
 
 print(type(feadata))
 
-# åˆ†æˆåä»½
+# ·Ö³ÉÊ®·İ
 
 F = (3, 3, 3, 2, 2, 2, 2, 2, 2, 2)
 M = (4, 4, 4, 4, 4, 5, 5, 5, 5, 5)
@@ -44,7 +44,7 @@ d_list = {'Female': F, 'Male': M}
 cur_list = {'Female': cur_F, 'Male': cur_M}
 
 
-# æ‰“å¼€è¾“å‡ºæ–‡ä»¶æµ
+# ´ò¿ªÊä³öÎÄ¼şÁ÷
 fout = []
 for i in range(0, 10):
     fout.append(open(rootdir+"/feature/"+str(i)+".txt",'w'))
