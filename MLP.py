@@ -9,7 +9,8 @@ import datetime
 
 os.environ['CUDA_VISIBLE_DEVICES']='10,15'
 
-
+def BatchNorm(value, is_train = True,epsilon = 1e-5, momentum = 0.9):
+        return tf.contrib.layers.batch_norm(value, decay = momentum, updates_collections = None,epsilon = epsilon, scale = True,is_training = is_train)
 class CDataSet():
 	def __init__(self,data,labels,shuffle=False):
 		if len(data)==0 or len(data)!=len(labels):
@@ -59,10 +60,12 @@ for item in speakerInfo:
 
 #config
 no_paragraph=1
-gender_include = 'Male'
+gender_include = 'Male,Female'
 output_log=0
-
-
+do_BN=1
+bn_decay=0.9
+bn_beta=0
+bn_gamma=5
 
 now=datetime.datetime.now()
 
@@ -99,7 +102,8 @@ acc_train_cv=np.zeros(set_num) # 每次CV 时train_set的准确率
 
 cv_now=datetime.datetime.now()
 
-for i in range(set_num):        
+for i in range(set_num):     
+
 	print('Begin CV %d :' %(i))
         cv_dir=modeldir+'/'+cv_now.strftime('%Y-%m-%d_%H_%M_%S')+'_cv'+str(i)
         os.system('mkdir '+ cv_dir)
@@ -135,16 +139,16 @@ for i in range(set_num):
 	val_labels=np.array(val_labels)
 	train_set=np.array(train_set)
 	train_labels=np.array(train_labels)
-
+        
         epoch_num=1024
-        batch_size=8
+        batch_size=512
         learning_rate=0.001
-        hidden_layer=[256,128,128]
+        hidden_layer=[1024]
 
 	hidden_layer_num= len(hidden_layer)
 	in_node_num=fea_dim
 	out_node_num=class_num
-
+        
         W=[]
 	b=[]
 
@@ -153,6 +157,7 @@ for i in range(set_num):
 	#draw neural net
 	x=tf.placeholder('float',[None,fea_dim])
 	y_=tf.placeholder('float',[None, class_num])
+        is_train=tf.placeholder(tf.bool)
 
 	net_struct=[]
 	net_struct.append(in_node_num)
@@ -173,7 +178,7 @@ for i in range(set_num):
         net_print+=str(net_struct[-1])
         net_print+='\n--------------------'
         print(net_print)
-
+        print('do_BN:%d'%(do_BN))
 	net_depth=len(net_struct)
 
 	for index in range(1,net_depth):
@@ -186,9 +191,15 @@ for i in range(set_num):
 
 	for index in range(1,net_depth-1):
 		layer_out[index]=tf.add(tf.matmul(layer_out[index-1],W[index-1]),b[index-1])
-		layer_out[index]=tf.nn.sigmoid(layer_out[index])
+                if do_BN==1:#添加BN层
+                    layer_out[index]=BatchNorm(layer_out[index],is_train=is_train)
+                layer_out[index]=tf.nn.sigmoid(layer_out[index])
 
 	layer_out[-1]=tf.add(tf.matmul(layer_out[-2],W[-1]),b[-1])
+
+    #    if do_BN==1:
+     #       layer_out[-1]=BatchNorm(layer_out[-1],is_train=is_train)
+
 	y=tf.nn.softmax(layer_out[-1])
 
 	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits= y, labels= y_))
@@ -229,7 +240,10 @@ for i in range(set_num):
 		acc_train = np.zeros(epoch_num)
                 modelpath=cv_dir+'/modelinit.ckpt'
                 saver.save(sess,modelpath,global_step=0)      
-		for epoch in range(epoch_num):
+        	for epoch in range(epoch_num):
+                epoch=0
+                While True:
+                        epoch=epoch+1
 			print("\nStrart Epoch %d traing:" % (epoch))
                         modelpath=cv_dir+'/model'+str(epoch)+'.ckpt'
 			batch_num = 0
@@ -239,20 +253,21 @@ for i in range(set_num):
                                # print('\tbatch_num=%d,batch_size=%d'%(batch_num,batch[2]))
 				if batch[2] == 0:
 					break
-				_, c = sess.run([optimizer, cost], feed_dict={x: batch[0], y_: batch[1]})
+                                _, c = sess.run([optimizer, cost], feed_dict={x: batch[0], y_: batch[1],is_train:True})
 				batch_num = batch_num + 1
 				avg_cost[epoch] = (batch_num - 1) / batch_num * avg_cost[epoch] + c / batch_num
-			acc_val[epoch] = sess.run(accuracy, feed_dict={x: val_set, y_: val_labels})
-			acc_train[epoch] = sess.run(accuracy, feed_dict={x: train_set, y_: train_labels})
+                        acc_val[epoch] = sess.run(accuracy, feed_dict={x: val_set, y_: val_labels,is_train:False})
+                        acc_train[epoch] = sess.run(accuracy, feed_dict={x: train_set, y_: train_labels,is_train:False})
 			print('Epoch %d finished' % (epoch))
 			print('\tavg_cost = %f' % (avg_cost[epoch]))
 			print('\tacc_train = %f' % (acc_train[epoch]))
                         print('\tacc_val = %f' % (acc_val[epoch]))
-                        if  acc_val_max< acc_val[epoch]:
-                            rt = saver.save(sess,modelpath)
-                            acc_val_max=acc_val[epoch]
-                            print('model saved in %s'%(rt))
-
+                        if output_log==1: 
+                            if  acc_val_max< acc_val[epoch]:
+                                rt = saver.save(sess,modelpath)
+                                acc_val_max=acc_val[epoch]
+                                print('model saved in %s'%(rt))
+                        if acc_train[epoch]
 	acc_val_cv[i]=acc_val[np.argmax(acc_val)]
 	acc_train_cv[i]=acc_train[np.argmax(acc_val)]
 
