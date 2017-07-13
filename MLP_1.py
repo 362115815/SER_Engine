@@ -7,7 +7,7 @@ import os
 import sys
 import datetime
 
-os.environ['CUDA_VISIBLE_DEVICES']='14,10'
+os.environ['CUDA_VISIBLE_DEVICES']='8'
 
 def BatchNorm(value, is_train = True,epsilon = 1e-5, momentum = 0.9):
         return tf.contrib.layers.batch_norm(value, decay = momentum, updates_collections = None,epsilon = epsilon, scale = True,is_training = is_train)
@@ -61,8 +61,8 @@ for item in speakerInfo:
 #config
 no_paragraph=1
 gender_include = 'Male,Female'
-output_log=0
-save_model=0
+output_log=1
+save_model=1
 do_BN=0
 bn_decay=0.9
 bn_beta=0
@@ -127,7 +127,7 @@ for i in range(set_num):
                             continue
                         fea=[float(index) for index in temp[1:-1]]
 			label=np.zeros(class_num)
-			label[emo_classes[temp[-1].strip()]]=1
+			label[emo_classes[temp[-1].replace('\n','')]]=1
 			if j==i:	
 				val_set.append(fea)
 				val_labels.append(label)
@@ -144,7 +144,7 @@ for i in range(set_num):
         epoch_num=1024
         batch_size=512
         learning_rate=0.001
-        hidden_layer=[512,512,512,512,512,512,512,512]
+        hidden_layer=[1024]
 
 	hidden_layer_num= len(hidden_layer)
 	in_node_num=fea_dim
@@ -153,71 +153,13 @@ for i in range(set_num):
         W=[]
 	b=[]
 
-
-
-	#draw neural net
-	x=tf.placeholder('float',[None,fea_dim])
-	y_=tf.placeholder('float',[None, class_num])
-        is_train=tf.placeholder(tf.bool)
-
-	net_struct=[]
-	net_struct.append(in_node_num)
-
-	for item in hidden_layer:
-		net_struct.append(item)
-
-	net_struct.append(out_node_num)
-        
-        # 输出网络信息
-        net_print='------网络信息------\n'
-        net_print+='网络类型:MLP\n'
-        net_print+='网络结构:'
-        
-        for net_struct_it in range(len(net_struct)-1):
-            net_print+=str(net_struct[net_struct_it])
-            net_print+=':'
-        net_print+=str(net_struct[-1])
-        net_print+='\n--------------------'
-        print(net_print)
-        print('do_BN:%d'%(do_BN))
-	net_depth=len(net_struct)
-
-	for index in range(1,net_depth):
-		W.append(tf.Variable(tf.random_normal([net_struct[index-1],net_struct[index]])))
-		b.append(tf.Variable(tf.random_normal([net_struct[index]])))
-
-	layer_out=range(net_depth)
-
-	layer_out[0]=x
-
-	for index in range(1,net_depth-1):
-		layer_out[index]=tf.add(tf.matmul(layer_out[index-1],W[index-1]),b[index-1])
-                if do_BN==1:#添加BN层
-                    layer_out[index]=BatchNorm(layer_out[index],is_train=is_train)
-                layer_out[index]=tf.nn.sigmoid(layer_out[index])
-
-	layer_out[-1]=tf.add(tf.matmul(layer_out[-2],W[-1]),b[-1])
-
-        if do_BN==1:
-            layer_out[-1]=BatchNorm(layer_out[-1],is_train=is_train)
-
-	y=tf.nn.softmax(layer_out[-1])
-
-	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits= y, labels= y_))
-	optimizer=tf.train.AdamOptimizer(learning_rate).minimize(cost)
-
-	init=tf.global_variables_initializer()
-
-	correct_prediction=tf.equal(tf.argmax(y,1),tf.argmax(y_,1))
-	accuracy=tf.reduce_mean(tf.cast(correct_prediction,'float'))
-
 	#normalize
-	# z-score
+	#z-score
 	mu = np.average(train_set, axis=0)
-	sigma = np.std(train_set, axis=0)
+	variance = np.var(train_set, axis=0)
 
-	train_set=(train_set-mu)/sigma
-	val_set=(val_set-mu)/sigma
+	#train_set=(train_set-mu)/sigma
+	#val_set=(val_set-mu)/sigma
 
         print('Normalize:z-score')
         
@@ -227,54 +169,116 @@ for i in range(set_num):
         print('Gender_include:%s' %(gender_include))
         if no_paragraph==1:
             print('no_paragraph:True')
+	#define neural net
+	g = tf.Graph()
+	with g.as_default():
+		train_mean=tf.constant(mu,name="mu",dtype="float")
+		train_var=tf.constant(variance,name="var",dtype="float")
+		x=tf.placeholder('float',[None,fea_dim],name='input')
+		y_=tf.placeholder('float',[None, class_num],name='label')
+	        is_train=tf.placeholder(tf.bool)
+
+                x_normalized=tf.nn.batch_normalization(x,train_mean,train_var,0,2,0.001,name="normalize")			   
+		net_struct=[]
+		net_struct.append(in_node_num)
+
+		for item in hidden_layer:
+			net_struct.append(item)
+
+		net_struct.append(out_node_num)
+	        
+	        # 输出网络信息
+	        net_print='------网络信息------\n'
+	        net_print+='网络类型:MLP\n'
+	        net_print+='网络结构:'
+	        
+	        for net_struct_it in range(len(net_struct)-1):
+	            net_print+=str(net_struct[net_struct_it])
+	            net_print+=':'
+	        net_print+=str(net_struct[-1])
+	        net_print+='\n--------------------'
+	        print(net_print)
+	        print('do_BN:%d'%(do_BN))
+		net_depth=len(net_struct)
+
+		for index in range(1,net_depth):
+			W.append(tf.Variable(tf.random_normal([net_struct[index-1],net_struct[index]])))
+			b.append(tf.Variable(tf.random_normal([net_struct[index]])))
+
+		layer_out=range(net_depth)
+
+		layer_out[0]=x_normalized
+
+		for index in range(1,net_depth-1):
+			layer_out[index]=tf.add(tf.matmul(layer_out[index-1],W[index-1]),b[index-1])
+	                if do_BN==1:#添加BN层
+	                    layer_out[index]=BatchNorm(layer_out[index],is_train=is_train)
+	                layer_out[index]=tf.nn.sigmoid(layer_out[index])
+
+		layer_out[-1]=tf.add(tf.matmul(layer_out[-2],W[-1]),b[-1])
+
+	        if do_BN==1:
+	            layer_out[-1]=BatchNorm(layer_out[-1],is_train=is_train)
+
+		y=tf.nn.softmax(layer_out[-1],name='predict')
+
+		cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits= y, labels= y_))
+		optimizer=tf.train.AdamOptimizer(learning_rate).minimize(cost)
+
+		init=tf.global_variables_initializer()
+
+		correct_prediction=tf.equal(tf.argmax(y,1),tf.argmax(y_,1))
+		accuracy=tf.reduce_mean(tf.cast(correct_prediction,'float'))
+
+
         
-	#run epoch
-        if save_model==1:
-            saver = tf.train.Saver()
-        acc_val_max =-1
-	train_data=CDataSet(train_set,train_labels)
-	with tf.Session() as sess:
-		sess.run(init)
-		avg_cost = []
-		acc_val = []
-		acc_train = []
-                if save_model==1:
-                    modelpath=cv_dir+'/modelinit.ckpt'
-                    saver.save(sess,modelpath,global_step=0)   
-                for epoch in range(epoch_num): 
-			print("\nStrart Epoch %d traing:" % (epoch))
-                        if save_model==1:
-                            modelpath=cv_dir+'/model'+str(epoch)+'.ckpt'
-			batch_num = 0
-                        batch_cost=0
-			while True:
-				batch = train_data.next_batch(batch_size)
-                                
-                               # print('\tbatch_num=%d,batch_size=%d'%(batch_num,batch[2]))
-				if batch[2] == 0:
-					break
-                                _, c = sess.run([optimizer, cost], feed_dict={x: batch[0], y_: batch[1],is_train:True})
-				batch_num = batch_num + 1
-                                batch_cost=(batch_num-1)/batch_num*batch_cost+c/batch_num
-			avg_cost.append(batch_cost)
-                        acc_val.append(sess.run(accuracy, feed_dict={x: val_set, y_: val_labels,is_train:False}))
-                        acc_train.append( sess.run(accuracy, feed_dict={x: train_set, y_: train_labels,is_train:False}))
-			print('Epoch %d finished' % (epoch))
-			print('\tavg_cost = %f' % (avg_cost[epoch]))
-			print('\tacc_train = %f' % (acc_train[epoch]))
-                        print('\tacc_val = %f' % (acc_val[epoch]))
-                        if save_model==1: 
-                            if  acc_val_max< acc_val[epoch]:
-                                rt = saver.save(sess,modelpath)
-                                acc_val_max=acc_val[epoch]
-                                print('model saved in %s'%(rt))
-                        if acc_train[epoch]>acc_train_epsilon:
-                            break
-	acc_val_cv[i]=acc_val[np.argmax(acc_val)]
-	acc_train_cv[i]=acc_train[np.argmax(acc_val)]
+		#run epoch
+		if save_model==1:
+		    saver = tf.train.Saver()
+		acc_val_max =-1
+		train_data=CDataSet(train_set,train_labels)
+		with tf.Session() as sess:
+			sess.run(init)
+			avg_cost = []
+			acc_val = []
+			acc_train = []
+	                if save_model==1:
+	                    modelpath=cv_dir+'/modelinit.ckpt'
+	                    saver.save(sess,modelpath,global_step=0)   
+	                for epoch in range(epoch_num): 
+				print("\nStrart Epoch %d traing:" % (epoch))
+	                        if save_model==1:
+	                            modelpath=cv_dir+'/model'+str(epoch)+'.ckpt'
+				batch_num = 0
+	                        batch_cost=0
+				while True:
+					batch = train_data.next_batch(batch_size)
+	                                
+	                               # print('\tbatch_num=%d,batch_size=%d'%(batch_num,batch[2]))
+					if batch[2] == 0:
+						break
+	                                _, c = sess.run([optimizer, cost], feed_dict={x: batch[0], y_: batch[1],is_train:True})
+					batch_num = batch_num + 1
+	                                batch_cost=(batch_num-1)/batch_num*batch_cost+c/batch_num
+				avg_cost.append(batch_cost)
+	                        acc_val.append(sess.run(accuracy, feed_dict={x: val_set, y_: val_labels,is_train:False}))
+	                        acc_train.append( sess.run(accuracy, feed_dict={x: train_set, y_: train_labels,is_train:False}))
+				print('Epoch %d finished' % (epoch))
+				print('\tavg_cost = %f' % (avg_cost[epoch]))
+				print('\tacc_train = %f' % (acc_train[epoch]))
+	                        print('\tacc_val = %f' % (acc_val[epoch]))
+	                        if save_model==1: 
+	                            if  acc_val_max< acc_val[epoch]:
+	                                rt = saver.save(sess,modelpath)
+	                                acc_val_max=acc_val[epoch]
+                                        print('model saved in %s'%(rt))
+	                        if acc_train[epoch]>acc_train_epsilon:
+	                            break
+		acc_val_cv[i]=acc_val[np.argmax(acc_val)]
+		acc_train_cv[i]=acc_train[np.argmax(acc_val)]
 
 	print('acc_train on cv %d = %f' % (i,acc_train_cv[i]))
-        print('acc_val on cv %d = %f' % (i,acc_val_cv[i]))
+	print('acc_val on cv %d = %f' % (i,acc_val_cv[i]))
 
 	print('CV %d finish ' % (i))
 print('CV finished.\navg_acc_train=%f,avg_acc_val=%f'%(np.average(acc_train_cv),np.average(acc_val_cv)))
