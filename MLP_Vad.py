@@ -10,7 +10,7 @@ import os
 import sys
 import datetime
 
-os.environ['CUDA_VISIBLE_DEVICES']='14,10'
+os.environ['CUDA_VISIBLE_DEVICES']='10'
 
 def BatchNorm(value, is_train = True,epsilon = 1e-5, momentum = 0.9):
         return tf.contrib.layers.batch_norm(value, decay = momentum, updates_collections = None,epsilon = epsilon, scale = True,is_training = is_train)
@@ -64,8 +64,8 @@ for item in speakerInfo:
 #config
 no_paragraph=1
 gender_include = 'Male,Female'
-output_log=0
-save_model=0
+output_log=1
+save_model=1
 do_BN=0
 do_CV=1
 bn_decay=0.9
@@ -119,7 +119,7 @@ for i in range(set_num):
 	val_labels=[]
 	train_set=[]
 	train_labels=[]	
-        for item in data_set[0]
+        for item in data_set[0]:
 	    temp = item.split(',')
                        # if genderInfo[name] not in gender_include:
                        #     continue
@@ -131,7 +131,7 @@ for i in range(set_num):
 	    train_set.append(fea)
 	    train_labels.append(label)
 	#start model training
-
+        print("data loaded")
 	val_set=np.array(val_set)
 	val_labels=np.array(val_labels)
 	train_set=np.array(train_set)
