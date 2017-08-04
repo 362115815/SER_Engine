@@ -56,12 +56,12 @@ modeldir = rootdir + '/model'
 #config
 
 
-output_log=0
-save_model=0
+output_log=1
+save_model=1
 gender_include = 'M,F'
 timestep_size = 1
 corpus ='iemo'
-which_copy='byperson'
+which_copy='washed'
 do_dropout=1
 _keep_prob=[0.5,0.5,0.2,0.1]
 
@@ -69,7 +69,7 @@ _keep_prob=[0.5,0.5,0.2,0.1]
 hidden_size = 512
 # LSTM layer 的层数
 layer_num = 1
-acc_train_epsilon= 0.9
+acc_train_epsilon= 0.99
 epoch_num = 256
 _batch_size=256
 learning_rate = 0.001

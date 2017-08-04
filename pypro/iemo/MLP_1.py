@@ -7,7 +7,7 @@ import os
 import sys
 import datetime
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '7'
 
 
 def BatchNorm(value, is_train=True, epsilon=1e-5, momentum=0.9):
@@ -51,7 +51,7 @@ feadir = rootdir + '/feature'
 logdir = rootdir + '/log'
 modeldir = rootdir + '/model'
 corpus = 'iemo'
-which_copy = 'byperson'
+which_copy = 'washed'
 
 
 emo_classes = {'ang': 0, 'hap': 1, 'exc': 1, 'neu': 2, 'sad': 3}
@@ -76,11 +76,15 @@ no_paragraph = 1
 gender_include = 'M,F'
 output_log = 1
 save_model = 1
-do_BN = 0
+do_BN = 1
 bn_decay = 0.9
 bn_beta = 0
 bn_gamma = 5
-acc_train_epsilon = 0.95
+acc_train_epsilon = 0.96
+epoch_num = 512
+batch_size = 128
+learning_rate = 0.001
+hidden_layer = [512]
 
 now = datetime.datetime.now()
 
@@ -148,10 +152,6 @@ for i in range(set_num):
     train_set = np.array(train_set)
     train_labels = np.array(train_labels)
 
-    epoch_num = 512
-    batch_size = 256
-    learning_rate = 0.001
-    hidden_layer = [512,512]
 
     hidden_layer_num = len(hidden_layer)
     in_node_num = fea_dim
