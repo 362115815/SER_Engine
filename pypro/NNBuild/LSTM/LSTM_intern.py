@@ -8,8 +8,9 @@ from tensorflow.contrib import rnn
 import os
 import sys
 import datetime
+import data_reader as dr
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '14'
 
 '''
 This is an LSTM network building script
@@ -52,6 +53,7 @@ feadir = rootdir + '/feature'
 logdir = rootdir + '/log'
 modeldir = rootdir + '/model'
 
+extra_train_set_path="/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
 
 #config
 
@@ -60,10 +62,17 @@ output_log=1
 save_model=1
 gender_include = 'M,F'
 timestep_size = 1
-corpus ='iemo'
-which_copy='washedS8'
+corpus ='intern'
+which_copy='byperson'
 do_dropout=1
 _keep_prob=[0.5,0.5,0.5,0.5,0.2,0.1]
+
+
+
+
+
+
+
 
 # 每个隐含层的节点数
 hidden_size = [512]
@@ -72,15 +81,15 @@ layer_num = 1
 acc_train_epsilon= 0.98
 epoch_num = 1024
 _batch_size=256
-learning_rate = 0.0005
+learning_rate = 0.001
+
 # predefine
 
-set_num = 10
+set_num = 20
 fea_dim = 88
-emo_classes = {'ang': 0, 'hap': 1, 'exc': 1, 'neu': 2, 'sad': 3}
+emo_classes = {'ang': 0, 'hap': 1, 'nor': 2, 'sad': 3,'neu':2,'exc':1}
 
-
-class_num = len(emo_classes)-1
+class_num =4
 
 now = datetime.datetime.now()
 
@@ -95,6 +104,10 @@ print('******* Run LSTM %s ********' % (now.strftime('%Y-%m-%d %H:%M:%S')))
 print('*********************************************')
 
 
+
+#读入额外训练集
+if extra_train_set_path!="" :
+    extra_train_set=dr.ArffReader(extra_train_set_path)
 # read data
 data_set = []
 for i in range(set_num):
@@ -142,6 +155,25 @@ for i in range(set_num):
                 train_set.append(fea)
                 train_labels.append(onehot_label)
 
+    #add extra train data to train_set
+
+    if extra_train_set_path!="" :
+        for item in extra_train_set.data:
+
+            name = item.lstrip("\'").split("_", 1)[0]
+            temp = item.split(',')
+            gender = name[-1]
+            if gender not in gender_include:
+                continue
+            fea = [float(index) for index in temp[1:-1]]
+            emo_label=temp[-1].strip()
+            if emo_label not in emo_classes.keys():
+                continue
+            onehot_label = np.zeros(class_num)
+            onehot_label[emo_classes[emo_label]] = 1         
+            train_set.append(fea)
+            train_labels.append(onehot_label)
+
     val_set = np.array(val_set)
     val_labels = np.array(val_labels)
     train_set = np.array(train_set)
@@ -165,6 +197,10 @@ for i in range(set_num):
     print('do_dropout:%d'%do_dropout)
     print('corpus:%s'%corpus)
     print('which_copy:%s'% which_copy)
+    if extra_train_set!="" :
+        print("extra_train_set:%s"%extra_train_set_path)
+
+
     # 输出网络信息
     net_print = '------网络信息------\n'
     net_print += '网络类型:LSTM\n'
@@ -316,21 +352,4 @@ if output_log == 1:
     sys.stdout = savedStdout
     fin.close()
 print('Training finished.')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
