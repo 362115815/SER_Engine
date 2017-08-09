@@ -42,7 +42,7 @@ cSER_Engine::cSER_Engine(QString work_dir)//work_dir目录必须是全路径，�
     connect(tensorFlow,SIGNAL(stopped(QString,bool)),this,SLOT(state_recv(QString,bool)));
     connect(tensorFlow,SIGNAL(out_predict_result(QString,QString,QStringList)),this,SIGNAL(out_predict_result(QString,QString,QStringList)));
     connect(tensorFlow,SIGNAL(out_predict_result(QString,QString,QStringList)),this,SLOT(send_predict_result(QString,QString,QStringList)));
-    connect(tensorFlow,SIGNAL(err_occured(QString,QString)),this,SLOT(exception_handle(QString,QString)));
+
 
     connect(openSmile,SIGNAL(err_occured(QString,QString)),this,SLOT(exception_handle(QString,QString)));
     connect(openSmile,SIGNAL(recorder_started(QString,bool)),this,SLOT(state_recv(QString,bool)));
@@ -553,7 +553,6 @@ int cSER_Engine::exception_handle(QString comp,QString err_msg)//error handle
     socket->write(out_data.toLatin1());
     socket->flush();
     cout<<"error msg sended."<<endl;
-    return 1;
 }
 
 int cSER_Engine::send_predict_result(QString voice_seg,QString predict,QStringList probability)//发送识别结果

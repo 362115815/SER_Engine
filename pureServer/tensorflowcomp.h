@@ -28,7 +28,6 @@ signals:
     void started(QString compName,bool state);
     void stopped(QString compName,bool state);
     void out_predict_result(QString voice_seg,QString predict,QStringList probability);
-    void err_occured(QString Comp,QString msg);
 };
 
 #endif // TENSORFLOWCOMP_H

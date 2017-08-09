@@ -58,8 +58,8 @@ extra_train_set_path="" #"/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/
 #config
 
 
-output_log=0
-save_model=0
+output_log=1
+save_model=1
 gender_include = 'M,F'
 timestep_size = 1
 corpus ='intern'
@@ -227,20 +227,22 @@ for i in range(set_num):
         train_mean = tf.constant(mu, name="mu", dtype="float")
         train_var = tf.constant(variance, name="var", dtype="float")
 
-        batch_size = tf.placeholder(tf.int32) 
+        batch_size = tf.placeholder(tf.int32,name='batch_size') 
         x = tf.placeholder('float', [None, fea_dim], name='input')
         y_ = tf.placeholder('float', [None, class_num], name='label')
-        x_lengths=tf.placeholder('int32',[None])
-        keep_prob=tf.placeholder(tf.float32)
+        x_lengths=tf.placeholder('int32',[None],name='x_lengths')
+        keep_prob=tf.placeholder(tf.float32,name='keep_prob')
         # do z-socre
-        x_normalized = tf.nn.batch_normalization(x, train_mean, train_var, 0, 2, 0.001, name="normalize")
+        x_normalized=tf.nn.batch_normalization(x, train_mean, train_var, 0, 2, 0.001, name="normalize")
+        print(type(x_normalized))
+        print(x_normalized.shape)
+      #  exit()
 
 
-
-        x_panding=tf.Variable(0,validate_shape=False,dtype=tf.float32)
+        x_panding=tf.Variable([[[2,3],[4,5]]],validate_shape=False,dtype=tf.float32,name='x_panding')
        # x_panding=tf.Variable([x_normalized],validate_shape=False)
       #  x_panding.assign([x_normalized])
-       x_panding=tf.assign(x_panding,[x_normalized],validate_shape= False)
+        x_panding=tf.assign(x_panding,[x_normalized],validate_shape= False)
         
         hidden_layer_num=len(hidden_size)
         hidden_layer=[]
@@ -267,8 +269,8 @@ for i in range(set_num):
 
         h_state=last_states[-1][-1]
 
-        W = tf.Variable(tf.truncated_normal([hidden_size[-1], class_num], stddev=0.1), dtype=tf.float32)
-        bias = tf.Variable(tf.constant(0.1,shape=[class_num]), dtype=tf.float32)
+        W = tf.Variable(tf.truncated_normal([hidden_size[-1], class_num], stddev=0.1), dtype=tf.float32,name='W_output')
+        bias = tf.Variable(tf.constant(0.1,shape=[class_num]), dtype=tf.float32,name='b_output')
         y = tf.nn.softmax(tf.matmul(h_state, W) + bias, name='predict')
 
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y, labels=y_))
@@ -328,7 +330,7 @@ for i in range(set_num):
                     batch_cost = (batch_num - 1) / batch_num * batch_cost + c / batch_num
                 avg_cost.append(batch_cost)
                 acc_val.append(sess.run(accuracy, feed_dict={x: val_set, y_: val_labels, x_lengths :np.ones(len(val_labels),dtype='int'),batch_size:len(val_labels),keep_prob:1.0}))
-                acc_train.append(sess.run(accuracy, feed_dict={x: train_set, y_: train_labels, x_lengths:np.ones(len(train_labels),dtype='int'),batch_size:len(train_labels),keep_prob:1.0}))
+                acc_train.append(sess.run(accuracy, feed_dict={x:train_set, y_: train_labels, x_lengths:np.ones(len(train_labels),dtype='int'),batch_size:len(train_labels),keep_prob:1.0}))
                 print('Epoch %d finished' % (epoch))
                 print('\tavg_cost = %f' % (avg_cost[epoch]))
                 print('\tacc_train = %f' % (acc_train[epoch]))
@@ -338,6 +340,8 @@ for i in range(set_num):
                         rt = saver.save(sess, modelpath)
                         acc_val_max = acc_val[epoch]
                         print('model saved in %s' % (rt))
+                        print('packing model to .pb format')
+
                 if acc_train[epoch] > acc_train_epsilon:
                     break
         acc_val_cv.append(acc_val[np.argmax(acc_val)])

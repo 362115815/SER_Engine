@@ -119,7 +119,6 @@ void cTensorFlowComp::run_trial(QString fea_path)
     cout<<"trial is comming.starting  emotion recognition..."<<endl;
 
     cmd = "predict=tfm.run(sess,\""+fea_path.toStdString()+"\",\""+result_path.toStdString()+"\")";
-
    // cout<<cmd<<endl;
     result = PyRun_SimpleString(cmd.c_str());
     //cout << result << endl;
@@ -127,7 +126,6 @@ void cTensorFlowComp::run_trial(QString fea_path)
     if(result!=0)
     {
         cout<<"emotion recognition failed."<<endl;
-        emit err_occured("tensorflowComp","emotion recognition failed");
         return;
     }
 
