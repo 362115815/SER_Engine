@@ -10,7 +10,7 @@ import sys
 import datetime
 import data_reader as dr
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '14'
+os.environ['CUDA_VISIBLE_DEVICES'] = '13'
 
 '''
 This is an LSTM network building script
@@ -53,21 +53,26 @@ feadir = rootdir + '/feature'
 logdir = rootdir + '/log'
 modeldir = rootdir + '/model'
 
-extra_train_set_path="" #"/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
+extra_train_set_path="/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise.arff" #"/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
 
 #config
 
 
 output_log=1
 save_model=1
-gender_include = 'M,F'
 timestep_size = 1
 corpus ='intern'
 which_copy='byperson'
 do_dropout=1
 _keep_prob=[0.5,0.5,0.5,0.5,0.2,0.1]
 
-person_exclude=['03','06','07','09','18']
+gender_include = ['M','F']
+
+
+person_exclude=['03','06','07','09','18','14']
+scene_include=['office']
+scenario_include=['seat','white','meet']
+db_include=['0']
 
 
 
@@ -75,13 +80,13 @@ person_exclude=['03','06','07','09','18']
 
 
 # 每个隐含层的节点数
-hidden_size = [512]
+hidden_size = [1024]
 # LSTM layer 的层数
 layer_num = 1
 acc_train_epsilon= 0.98
-epoch_num = 1024
-_batch_size=256
-learning_rate = 0.0005
+epoch_num = 512
+_batch_size=512
+learning_rate = 0.0003
 
 # predefine
 
@@ -122,12 +127,10 @@ for i in range(set_num):
 acc_val_cv = [] # 每次CV 时val_set的准确率
 acc_train_cv = []  # 每次CV 时train_set的准确率
 
-cv_now = datetime.datetime.now()
-
 for i in range(set_num):
     print('Begin CV %d :' % (i))
     if save_model==1:
-        cv_dir = modeldir + '/' + cv_now.strftime('%Y-%m-%d_%H_%M_%S') + '_cv' + str(i)
+        cv_dir = modeldir + '/' + now.strftime('%Y-%m-%d_%H_%M_%S') + '_cv' + str(i)
         os.system('mkdir ' + cv_dir)
 
     '''data prepare'''
@@ -165,16 +168,32 @@ for i in range(set_num):
         continue
     #add extra train data to train_set
 
+    #额外训练集加入到train_set
     if extra_train_set_path!="" :
         for item in extra_train_set.data:
-
-            name = item.lstrip("\'").split("_", 1)[0]
-            temp = item.split(',')
-            gender = name[-1]
+            temp=item.strip().split(',')
+            name = temp[0].strip('\'').split('_')
+            person=name[0][:2]
+            if person in person_exclude:
+                continue
+            elif person.lstrip('0')==str(i+1):
+                continue
+            gender = name[0][-1]
             if gender not in gender_include:
                 continue
+            scene=name[-3]
+            if scene not in scene_include:
+                continue
+
+            scenario=name[-2]
+            if  scenario not in scenario_include:
+                continue
+            db=name[-1]
+            if db not in db_include:
+                continue
+
             fea = [float(index) for index in temp[1:-1]]
-            emo_label=temp[-1].strip()
+            emo_label=temp[-1]
             if emo_label not in emo_classes.keys():
                 continue
             onehot_label = np.zeros(class_num)
@@ -199,12 +218,13 @@ for i in range(set_num):
     print('class_num:%d'%(class_num))
     print('Train_entry:%d' % len(train_set))
     print('Val_entry:%d' % len(val_set))
-    print('Gender_include:%s' % (gender_include))
     print('epoch_num:%d'% epoch_num)
     print('batch_size:%d'%_batch_size)
     print('do_dropout:%d'%do_dropout)
     print('corpus:%s'%corpus)
     print('which_copy:%s'% which_copy)
+    print('gender_include:%s' % (gender_include))
+    print('person_exclude:%s'%(person_exclude))
     if extra_train_set_path!="" :
         print("extra_train_set:%s"%extra_train_set_path)
 
@@ -217,6 +237,12 @@ for i in range(set_num):
         net_print+=str(i_t)+":"
     net_print+=str(class_num)
     print(net_print)
+
+    # 输出网络信息
+    print('------额外训练集------\n')
+    print('scene_include:%s'%(scene_include))
+    print('scenario_include:%s'%(scenario_include))
+    print('db_include:%s'%(db_include))
 
 
 
@@ -234,15 +260,17 @@ for i in range(set_num):
         keep_prob=tf.placeholder(tf.float32,name='keep_prob')
         # do z-socre
         x_normalized=tf.nn.batch_normalization(x, train_mean, train_var, 0, 2, 0.001, name="normalize")
-        print(type(x_normalized))
-        print(x_normalized.shape)
+      #  print(type(x_normalized))
+      #  print(x_normalized.shape)
       #  exit()
 
 
-        x_panding=tf.Variable([[[2,3],[4,5]]],validate_shape=False,dtype=tf.float32,name='x_panding')
+        #x_panding=tf.Variable([[[2,3],[4,5]]],validate_shape=False,dtype=tf.float32,name='x_panding')
        # x_panding=tf.Variable([x_normalized],validate_shape=False)
       #  x_panding.assign([x_normalized])
-        x_panding=tf.assign(x_panding,[x_normalized],validate_shape= False)
+       # x_panding=tf.assign(x_panding,[x_normalized],validate_shape= False)
+        x_panding=tf.reshape(x_normalized,[1,-1,fea_dim])
+      #  print(np.shape(x_panding))
         
         hidden_layer_num=len(hidden_size)
         hidden_layer=[]
@@ -312,6 +340,9 @@ for i in range(set_num):
                     if batch[2] == 0:
                         break
                    # print(batch[2])
+                    
+
+                   ##test
                     '''
                     o,h = sess.run([outputs, last_states], feed_dict={x: batch[0], y_:batch[1],
                         x_lengths:np.ones(batch[2], dtype='int'),batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
@@ -322,8 +353,17 @@ for i in range(set_num):
                     print(h)
                     print('\n\n')
                     print(h[-1][-1])
+                    '''
+                    '''
+                    o1,o= sess.run([x_normalized,x_panding], feed_dict={x: batch[0], y_:batch[1],
+                        x_lengths:np.ones(batch[2], dtype='int'),batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
+                    print('o1=')
+                    print(o1)
+                    print('o=')
+                    print(o)             
                     exit()
                     '''
+
                     _,c=sess.run([optimizer, cost], feed_dict={x: batch[0], y_:batch[1],
                     x_lengths:np.ones(batch[2], dtype='int'),batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
                     batch_num = batch_num + 1
