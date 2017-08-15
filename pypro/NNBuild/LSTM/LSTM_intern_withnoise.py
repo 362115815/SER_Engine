@@ -53,7 +53,7 @@ feadir = rootdir + '/feature'
 logdir = rootdir + '/log'
 modeldir = rootdir + '/model'
 
-extra_train_set_path="/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise.arff" #"/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
+extra_train_set_path="/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise_all.arff" #"/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
 
 #config
 
@@ -70,9 +70,9 @@ gender_include = ['M','F']
 
 
 person_exclude=['03','06','07','09','18','14']
-scene_include=['office']
-scenario_include=['seat','white','meet']
-db_include=['0']
+scene_include=['babble']
+scenario_include=['bg']
+db_include=['25']
 
 
 
@@ -80,13 +80,13 @@ db_include=['0']
 
 
 # 每个隐含层的节点数
-hidden_size = [1024]
+hidden_size = [1024,512]
 # LSTM layer 的层数
 layer_num = 1
 acc_train_epsilon= 0.98
-epoch_num = 512
-_batch_size=512
-learning_rate = 0.0003
+epoch_num = 128
+_batch_size=256
+learning_rate = 0.0005
 
 # predefine
 

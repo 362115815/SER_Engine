@@ -75,11 +75,11 @@ person_exclude=['03','06','07','09','18']
 
 
 # 每个隐含层的节点数
-hidden_size = [512]
+hidden_size = [1024,512,256]
 # LSTM layer 的层数
 layer_num = 1
 acc_train_epsilon= 0.98
-epoch_num = 1024
+epoch_num = 128
 _batch_size=256
 learning_rate = 0.0005
 
@@ -122,12 +122,11 @@ for i in range(set_num):
 acc_val_cv = [] # 每次CV 时val_set的准确率
 acc_train_cv = []  # 每次CV 时train_set的准确率
 
-cv_now = datetime.datetime.now()
 
 for i in range(set_num):
     print('Begin CV %d :' % (i))
     if save_model==1:
-        cv_dir = modeldir + '/' + cv_now.strftime('%Y-%m-%d_%H_%M_%S') + '_cv' + str(i)
+        cv_dir = modeldir + '/' + now.strftime('%Y-%m-%d_%H_%M_%S') + '_cv' + str(i)
         os.system('mkdir ' + cv_dir)
 
     '''data prepare'''
