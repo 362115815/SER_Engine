@@ -3,7 +3,6 @@
 #include"opensmilecomp.h"
 #include<iostream>
 #include<QEventLoop>
-#include<QTimer>
 #include<QDir>
 #include<QFile>
 #include<QLockFile>
@@ -13,8 +12,23 @@
 using std::cout;
 using std::endl;
 
+
+
 cSER_Engine::cSER_Engine(QString work_dir)//work_dir目录必须是全路径，且目录下面有SER_Engine文件夹
 {
+    max_recognition_num=64;
+    set_workdir(work_dir);
+    for(quint64 i=0;i<max_recognition_num;i++)
+    {
+        cRecSample * recSample=new cRecSample(i);
+        connect(recSample,SIGNAL(err_occured(QString,QString,cRecSample&)),this,SLOT(exception_handle(QString,QString,cRecSample&)));
+        recognition_pool.append(recSample);
+        if(i!=0)
+        {
+            available_sample_id.enqueue(i);
+        }
+    }
+
 
     spyThread_running=false;
     openSmile_runnig=false;
@@ -22,14 +36,17 @@ cSER_Engine::cSER_Engine(QString work_dir)//work_dir目录必须是全路径，�
     engine_running=false;
     engine_exstart=false;
 
+    ckpt_mode=true;
    // cout<<"This is Engine speaking.wav_seg_path=" << wav_seg_path.toStdString()<<endl;
-    spyThread=new cSpyThread(wav_seg_path);
+    spyThread=new cSpyThread(work_dir);
     tensorFlow=new cTensorFlowComp(work_dir);
     openSmile=new cOpenSmileComp(work_dir);
+
     server=new QTcpServer;
    // socket=new QTcpSocket;
 
-    set_workdir(work_dir);
+
+
 
 
 
@@ -40,23 +57,27 @@ cSER_Engine::cSER_Engine(QString work_dir)//work_dir目录必须是全路径，�
     connect(tensorFlow,SIGNAL(recogition_complete(QString)),this,SIGNAL(recognition_complete(QString)));
     connect(tensorFlow,SIGNAL(started(QString,bool)),this,SLOT(state_recv(QString,bool)));
     connect(tensorFlow,SIGNAL(stopped(QString,bool)),this,SLOT(state_recv(QString,bool)));
-    connect(tensorFlow,SIGNAL(out_predict_result(QString,QString,QStringList)),this,SIGNAL(out_predict_result(QString,QString,QStringList)));
-    connect(tensorFlow,SIGNAL(out_predict_result(QString,QString,QStringList)),this,SLOT(send_predict_result(QString,QString,QStringList)));
+    connect(tensorFlow,SIGNAL(out_predict_result(cRecSample&,QString,QStringList)),this,SIGNAL(out_predict_result(cRecSample&,QString,QStringList)));
+    connect(tensorFlow,SIGNAL(out_predict_result(cRecSample&,QString,QStringList)),this,SLOT(send_predict_result(cRecSample&,QString,QStringList)));
+    connect(tensorFlow,SIGNAL(err_occured(QString,QString,cRecSample&)),this,SLOT(exception_handle(QString,QString,cRecSample&)));
 
-
-    connect(openSmile,SIGNAL(err_occured(QString,QString)),this,SLOT(exception_handle(QString,QString)));
+    connect(openSmile,SIGNAL(err_occured(QString,QString,cRecSample&)),this,SLOT(exception_handle(QString,QString,cRecSample&)));
     connect(openSmile,SIGNAL(recorder_started(QString,bool)),this,SLOT(state_recv(QString,bool)));
     connect(openSmile,SIGNAL(recorder_stopped(QString,bool)),this,SLOT(state_recv(QString,bool)));
-    connect(openSmile,SIGNAL(fea_extra_finished(QString)),tensorFlow,SLOT(run_trial(QString)));
+    connect(openSmile,SIGNAL(fea_extra_finished(cRecSample &)),tensorFlow,SLOT(run_trial(cRecSample&)));
 
     connect(this,SIGNAL(stop_all()),spyThread,SLOT(stop()));
     connect(this,SIGNAL(stop_all()),tensorFlow,SLOT(stop_tf()));
     connect(this,SIGNAL(stop_all()),openSmile,SLOT(stop_recorder()));
-    connect(this,SIGNAL(fea_extact(QString)),openSmile,SLOT(fea_extract(QString)));
+    connect(this,SIGNAL(fea_extact(cRecSample &)),openSmile,SLOT(fea_extract(cRecSample &)));
+    connect(this,SIGNAL(new_sample_coming(cRecSample*)),openSmile,SLOT(new_sample_coming(cRecSample*)));
 
+
+    connect(this,SIGNAL(err_occured(QString,QString,cRecSample&)),this,SLOT(exception_handle(QString,QString,cRecSample&)));
      //socket信号绑定
 
      connect(server,SIGNAL(newConnection()),this,SLOT(handle_new_connection()));
+
 
 
      Py_Initialize();
@@ -164,6 +185,23 @@ int cSER_Engine::preboot_engine()
 
     return 0;
 }
+  int cSER_Engine::resetSample(quint64 id)
+  {
+      recognition_pool[id]->reset();
+      available_sample_id.enqueue(id);
+      return 0;
+  }
+
+quint64 cSER_Engine::get_available_id()
+{
+    quint64 id=0;
+    if(!available_sample_id.isEmpty())
+    {
+        id=available_sample_id.dequeue();
+    }
+
+    return id;
+}
 
 int cSER_Engine::start_asServer(QString work_dir,qint64 port)//作为服务端启动
 {
@@ -211,9 +249,16 @@ int cSER_Engine::start_asServer(QString work_dir,qint64 port)//作为服务端�
 
     //开启 tensorflow
     cout<<"starting tensorflow"<<endl;
-     count=0;
-    tensorFlow->start();
+    count=0;
+     if(!ckpt_mode)
+     {
+         tensorFlow->start();
 
+     }
+    else
+     {
+         tensorFlow->start_ckpt();
+     }
     while(count<3 && !tensorFlow_runnig)
     {
         QEventLoop eventloop;
@@ -536,28 +581,62 @@ int cSER_Engine::socket_read_data()//读取socket的数据
 
     QByteArray buffer;
     buffer=socket->readAll();
-    qDebug()<<"receiving data for client: "<<buffer<<endl;
+
+    QString filepath(buffer);
+
+    cout<<"filepath="<<filepath.toStdString()<<endl;
+
+    QString filename= filepath.mid(filepath.lastIndexOf("/")+1);
+     filename = filename.left(filename.lastIndexOf(".wav"));
+    cout<<"filename="<<filename.toStdString()<<endl;
+    quint64 id=get_available_id();
+    if(id==0)
+    {
+        recognition_pool[0]->filename=filename;
+        emit err_occured("cSER_Engine","server is busy",*recognition_pool[0]);
+        return -1;
+    }
+
+    recognition_pool[id]->init(filename,filepath);
+
+    QDateTime time = QDateTime::currentDateTime();//获取系统现在的时间
+    QString str = time.toString("yyyy-MM-dd hh:mm:ss ddd"); //设置显示格式
+
+    qDebug()<<str+":"+"receiving data from client: "<<filepath<<endl;
+
     //socket->write("data received.");
    // socket->flush();
 
-    emit fea_extact(buffer);
+   //emit fea_extact(*recognition_pool[id]);
+    emit new_sample_coming(recognition_pool[id]);
+
     return 0;
 }
 
-int cSER_Engine::exception_handle(QString comp,QString err_msg)//error handle
+int cSER_Engine::exception_handle(QString comp, QString err_msg, cRecSample &sample)//error handle
 {
-    cout<<"SER_Server: ERROR : Compnent: "<<comp.toStdString()<<"\t Exception: "<<err_msg.toStdString()<<endl;
-    cout<<"sending error msg to client..."<<endl;
-    QString out_data="ERROR:  Compnent: "+comp+"\t Exception: "+err_msg+"\n";
-
+    if(sample.state==0)
+    {
+        return -1;
+    }
+    cout<<"SER_Server: ERROR : Compnent: "<<comp.toStdString()<<"  Exception: "<<err_msg.toStdString()+"  Filename:"<<sample.filename.toStdString()<<endl;
+    cout<<"sample id="<<sample.id<<":sending error msg to client..."<<endl;
+    QString out_data="ERROR:  Compnent:"+comp+"  Exception:"+err_msg+"  Filename:"+sample.filename+"\n";
     socket->write(out_data.toLatin1());
     socket->flush();
     cout<<"error msg sended."<<endl;
+    sample.reset();
+    return 0;
 }
 
-int cSER_Engine::send_predict_result(QString voice_seg,QString predict,QStringList probability)//发送识别结果
+int cSER_Engine::send_predict_result(cRecSample&sample,QString predict,QStringList probability)//发送识别结果
 {
-    cout<<"sending predict result..."<<endl;
+    if(sample.state==0)
+    {
+        return -1;
+    }
+    QString voice_seg=sample.filename;
+    cout<<"sample id="<<sample.id<<":sending predict result..."<<endl;
     QString out_data="";
 
     QString str="";
@@ -573,6 +652,8 @@ int cSER_Engine::send_predict_result(QString voice_seg,QString predict,QStringLi
     socket->write(out_data.toLatin1());
     socket->flush();
     cout<<"predict result sended"<<endl;
+
+    sample.reset();
 
    return 0;
 }
@@ -608,7 +689,7 @@ int cSER_Engine::set_workdir(QString work_dir)//设置工作目录
     wav_seg_path=tempdata_path+"/wav_seg";
     feature_path=tempdata_path+"/feature";
     openSmile_path=engine_path+"/opensmile";
-
+/*
     if(tensorFlow!=NULL)
     {
         tensorFlow->set_workdir(work_dir);
@@ -622,7 +703,7 @@ int cSER_Engine::set_workdir(QString work_dir)//设置工作目录
     {
         spyThread->set_workdir(work_dir);
     }
-
+*/
     return 0;
 }
 
@@ -654,6 +735,10 @@ int cSER_Engine::set_workdir(QString work_dir)//设置工作目录
     delete openSmile;
     delete tensorFlow;
     delete spyThread;
+    for(quint64 i=0;i<max_recognition_num;i++)
+    {
+        delete recognition_pool[i];
+    }
     //Py_FinalizeEx();
     Py_Finalize();
 }

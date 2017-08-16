@@ -8,10 +8,15 @@
 #include<QStringList>
 #include<QTcpSocket>
 #include<QTcpServer>
+#include<QTimer>
+#include<QMap>
 #include"string"
+#include"recsample.h"
 using std::string;
 
 class cSpyThread;
+
+//extern int log_level=0;
 
 class cSER_Engine:public QObject
 {
@@ -29,8 +34,6 @@ public:
     Q_INVOKABLE QString get_wav_seg_path();//停止opensmile录音
     Q_INVOKABLE int get_startIndex();//获取录音开始编号
     Q_INVOKABLE int start_asServer(QString work_dir,qint64 port);//作为服务端启动
-
-
     bool engine_running;
     bool engine_exstart;
 
@@ -50,17 +53,26 @@ private:
 	cTensorFlowComp * tensorFlow;
     bool openSmile_runnig;
     bool tensorFlow_runnig;
+
+    bool ckpt_mode;
+    quint64 max_recognition_num;//max handle num
+    QVector<cRecSample*> recognition_pool;//receive post
+    QQueue<quint64> available_sample_id;
+    quint64 get_available_id();//if return 0 ,no free id to use
+    int resetSample(quint64 id);//resets Sample status in recognition pool, makes sample to be reused
 signals:
     void stop_all();
     void recognition_complete(QString predict_path);
-    void out_predict_result(QString voice_seg,QString predict,QStringList probability);
-    void fea_extact(QString wav_path);
+    void out_predict_result(cRecSample& sample,QString predict,QStringList probability);
+    void fea_extact(cRecSample & sample);
+    void err_occured(QString comp, QString err_msg,cRecSample& sample);
+    void new_sample_coming(cRecSample * sample);
 public slots:
     int state_recv(QString compName,bool state);
     int handle_new_connection();//处理新的连接
     int socket_read_data();//读取socket的数据
-    int send_predict_result(QString voice_seg,QString predict,QStringList probability);//发送识别结果
-    int exception_handle(QString comp, QString err_msg);//error handle
+    int send_predict_result(cRecSample& sample,QString predict,QStringList probability);//发送识别结果
+    int exception_handle(QString comp, QString err_msg,cRecSample &);//error handle
 
 };
 

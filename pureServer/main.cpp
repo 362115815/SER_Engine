@@ -17,8 +17,9 @@ int main(int argc, char *argv[])
 
    QString work_dir=argv[1];
    qint64 port=atoi(argv[2]);
-   cSER_Engine ser_engine;
-
+   cSER_Engine ser_engine(work_dir);
+    setvbuf(stdout, (char *)NULL, _IONBF, 0);
+    setvbuf(stderr, (char *)NULL, _IONBF, 0);
    int rt=ser_engine.start_asServer(work_dir,port);
     if(rt!=0)
     {

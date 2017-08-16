@@ -20,12 +20,54 @@ void cTensorFlowComp::set_workdir(QString work_dir)
     this->work_dir=work_dir;
     engine_path=work_dir+"/SER_Engine";
     model_path=engine_path+"/models";
-    result_path=engine_path+"/predict.txt";
+    result_dir=engine_path+"/tempdata/result";
 
 }
 cTensorFlowComp::~cTensorFlowComp()
 {
     stop();
+}
+int cTensorFlowComp::start_ckpt()
+{
+    string cmd;
+    int result;
+    //导入模块
+    if(!tf_module_imported)
+    {
+        cout<<"importing python tensorflow module..."<<endl;
+        cmd = "import tf_module as tfm";
+        //cmd = "import tensorflow";
+        result = PyRun_SimpleString(cmd.c_str());
+
+        cout <<"result="<<result<< endl;
+        if(result!=0)
+        {
+            cout<<"fail to import tensorflow module."<<endl;
+            return -1;
+        }
+        //tf_module_imported=false;
+        cout<<"tf_module imported."<<endl;
+    }
+
+    //开启Session
+    cout<<"starting session..."<<endl;
+
+    cmd = "sess=tfm.start_session_ckpt()";
+    cout << cmd << endl;
+    result = PyRun_SimpleString(cmd.c_str());
+
+    if(result!=0)
+    {
+        cout<<"fail to start session"<<endl;
+        return -1;
+    }
+    cout<<"session started.waiting to run..."<<endl;
+    emit started("tfModule",true);
+
+   // Py_FinalizeEx();
+    return 0;
+
+
 }
 
 int cTensorFlowComp::start()
@@ -92,16 +134,10 @@ int cTensorFlowComp::start()
         cout<<"fail to start session"<<endl;
         return -1;
     }
-
     cout<<"session started.waiting to run..."<<endl;
-
     emit started("tfModule",true);
 
    // Py_FinalizeEx();
-
-
-
-
     return 0;
 }
  void cTensorFlowComp::stop_tf()
@@ -109,16 +145,22 @@ int cTensorFlowComp::start()
      stop();
      return;
  }
-void cTensorFlowComp::run_trial(QString fea_path)
+void cTensorFlowComp::run_trial(cRecSample & sample)
 {
 
+    QString fea_path=sample.feafile;
+    QString result_path=result_dir+"/"+sample.filename+".predict";
+    sample.resultfile=result_path;
    // QMessageBox::about(NULL,"run run run",fea_path);
     string cmd;
     int result;
     //识别
     cout<<"trial is comming.starting  emotion recognition..."<<endl;
 
-    cmd = "predict=tfm.run(sess,\""+fea_path.toStdString()+"\",\""+result_path.toStdString()+"\")";
+
+
+    cmd = "predict=tfm.run_lstm(sess,\""+fea_path.toStdString()+"\",\""+result_path.toStdString()+"\")";
+
    // cout<<cmd<<endl;
     result = PyRun_SimpleString(cmd.c_str());
     //cout << result << endl;
@@ -126,9 +168,12 @@ void cTensorFlowComp::run_trial(QString fea_path)
     if(result!=0)
     {
         cout<<"emotion recognition failed."<<endl;
+        emit err_occured("tensorflowComp","emotion recognition failed",sample);
+        QFile::remove(fea_path);
+        QFile::remove(result_path);
         return;
     }
-
+    sample.state=3;
     emit recogition_complete(result_path);
     ifstream fin(result_path.toStdString());
     string predict;
@@ -136,25 +181,15 @@ void cTensorFlowComp::run_trial(QString fea_path)
     getline(fin,predict);
     getline(fin,prob);
 
-
+    fin.close();
 
 
     QStringList probability=QString::fromStdString(prob).split(" ");
 
-    int index=fea_path.lastIndexOf("/");
-    QString voice_seg_name = fea_path.mid(index+1).replace("_done.csv","");
-
-
-    emit out_predict_result(voice_seg_name,QString::fromStdString(predict),probability);
-
     QFile::remove(fea_path);
-
-
+    QFile::remove(result_path);
+    emit out_predict_result(sample,QString::fromStdString(predict),probability);
     cout<<"emotion is being recognized."<<endl;
-
-
-
-
     return;
 }
 

@@ -80,13 +80,11 @@ db_include=['25']
 
 
 # 每个隐含层的节点数
-hidden_size = [1024,512]
-# LSTM layer 的层数
-layer_num = 1
+hidden_size = [1024,1024]
 acc_train_epsilon= 0.98
-epoch_num = 128
+epoch_num = 256
 _batch_size=256
-learning_rate = 0.0005
+learning_rate = 0.0003
 
 # predefine
 

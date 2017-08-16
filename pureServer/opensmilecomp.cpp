@@ -6,16 +6,38 @@
 #include<QTimer>
 #include<QDebug>
 #include<QFile>
+
 using std::cout;
 using std::endl;
 using std::string;
+//extern int log_level;
 cOpenSmileComp::cOpenSmileComp(QString workdir)
 {
     set_workdir(workdir);
+
+    max_thread_num=8;
+    /*
+    cout<<"work_dir="<<workdir.toStdString()<<endl;
+    cout<<"feature_path="<<feature_path.toStdString()<<endl;
+    cout<<"opensmile_path="<<opensmile_path.toStdString()<<endl;
+    exit(1);
+    */
+    for(quint64 i=0;i<max_thread_num;i++)
+    {
+        cFeaExtractThread * thread=new cFeaExtractThread(i,feature_path,opensmile_path);
+        connect(thread,SIGNAL(err_occured(QString,QString,cRecSample&)),this,SIGNAL(err_occured(QString,QString,cRecSample&)));
+        connect(thread,SIGNAL(thread_finished(quint64)),this,SLOT(thread_finished(quint64)));
+        FE_thread_pool.append(thread);
+        if(i!=0)
+        {
+            available_thread_id.enqueue(i);
+        }
+    }
+
+
     pro=NULL;
     console_msg="";
     return;
-
 }
 
  void cOpenSmileComp::set_workdir(QString workdir)
@@ -38,6 +60,9 @@ cOpenSmileComp::cOpenSmileComp(QString workdir)
      QString tempdata_path;
      QString wav_seg_path;
      */
+
+
+
      return;
  }
 int cOpenSmileComp::start_record(int startIndex)
@@ -73,6 +98,15 @@ int cOpenSmileComp::start_record(int startIndex)
 
     cout<<"recorder start failed."<<endl;
     return -1;
+}
+quint64 cOpenSmileComp::get_available_thread()
+{
+    quint64 id=0;
+    if(!available_thread_id.isEmpty())
+    {
+        id=available_thread_id.dequeue();
+    }
+    return id;
 }
 
 int cOpenSmileComp::start_record(QString workdir)
@@ -135,6 +169,10 @@ cOpenSmileComp::~cOpenSmileComp()
         pro->close();
         delete pro;
     }
+    for(quint64 i=0;i<max_thread_num;i++)
+    {
+        delete FE_thread_pool[i];
+    }
 }
 void cOpenSmileComp::readOutput()//读取输出
 {
@@ -146,9 +184,62 @@ void cOpenSmileComp::stop_recorder()//停止录音
 {
     stop_record();
 }
+ void cOpenSmileComp::resetFEThread(quint64 id)
+ {
+     FE_thread_pool[id]->reset();
+     available_thread_id.enqueue(id);
+     return ;
+ }
+
+ int cOpenSmileComp::get_one_to_run()//get a sample and run feature extraction
+ {
+     if(samples_toExtract.isEmpty())
+     {
+         return -1;
+     }
+
+     quint64 id=get_available_thread();
+     if(id==0)
+     {
+        // emit err_occured("openSmileComp","opensmile is busy",*recSample);
+         cout<<"opensmile is busy.no free thread to use."<<endl;
+         return -1;
+     }
+     cRecSample * recSample=samples_toExtract.dequeue();
+     FE_thread_pool[id]->start_FExtract(recSample);
+     cout<<"opensmile thread run: id="<<id<<endl;
+
+     return 0;
+ }
+
+ int cOpenSmileComp::new_sample_coming(cRecSample * sample)
+ {
+      cout<<"This is opensmile speaking : new sample coming :"<<sample->filepath.toStdString()<<endl;
+     samples_toExtract.enqueue(sample);
+     get_one_to_run();
+     return 0;
+ }
+
 int cOpenSmileComp::fea_extract(QString wavfile)//提取特征
 {
+    Q_UNUSED(wavfile);
+    return 0;
+}
+int cOpenSmileComp::thread_finished(quint64 id)//a thread finished, reset it and add it to the queue of available ids
+{
+    if(FE_thread_pool[id]->sample->state==2)
+    {
+        emit fea_extra_finished(*(FE_thread_pool[id]->sample));
+    }
 
+    resetFEThread(id);
+
+    return 0;
+}
+
+int cOpenSmileComp::fea_extract(cRecSample & sample)//提取特征
+{
+    QString wavfile=sample.filepath;
     cout<<"This opensmilecomp speaking: wavfile="<<wavfile.toStdString()<<endl;
     qDebug()<<"this is fea_extarct speaking:"<<endl;
     wav_queue.enqueue(wavfile);
@@ -183,7 +274,9 @@ int cOpenSmileComp::fea_extract(QString wavfile)//提取特征
             if(rt)
             {
                 //qDebug()<<file.fileName()<<endl;
-                emit fea_extra_finished(file.fileName());
+                sample.state=2;
+                sample.feafile=file.fileName();
+                emit fea_extra_finished(sample);
                 break;
             }
             count++;
@@ -196,7 +289,8 @@ int cOpenSmileComp::fea_extract(QString wavfile)//提取特征
         cout<<count<<endl;
         if(!rt)
         {
-            emit err_occured("OpenSmileComp","file can not be renamed");
+            pro.close();
+            emit err_occured("OpenSmileComp","file can not be renamed",sample);
             cout<<"fea_extract Error: file can not be renamed."<<endl;
             return -1;
 
@@ -207,4 +301,106 @@ int cOpenSmileComp::fea_extract(QString wavfile)//提取特征
 
 
     return 0;
+}
+
+int cFeaExtractThread::start_FExtract(cRecSample * sample)//start feature extraction
+{
+    this->sample=sample;
+    state=1;
+    running=true;
+    run();
+    return 0;
+}
+void cFeaExtractThread::reset()
+{
+    this->id=id;
+    this->feature_path=feature_path;
+    this->opensmile_path=opensmile_path;
+    state=0;
+    fe_state=-1;
+    running=false;
+    return;
+}
+
+void cFeaExtractThread::run()
+{
+    QString wavfile=sample->filepath;
+    cout<<"this is fea_extarct speaking:";
+    cout<<"wavefile:"<<wavfile.toStdString()<<endl;
+    QString feafile=feature_path+"/"+sample->filename+".csv";
+    sample->feafile=feafile;
+    QString cmd=opensmile_path+"/bin/SMILExtractPA -C "+opensmile_path+"/config/gemaps/eGeMAPSv01a.conf"+
+            " -I "+wavfile+" -csvoutput "+feafile;
+    cout<<"feature extarct cmd:"<<cmd.toStdString()<<endl;
+    cout<<"cFeaExtracTread "<<id<<":timer started"<<endl;
+    timer->start();
+    pro->start(cmd);
+    while(running)
+    {
+        QEventLoop eventloop;
+        QTimer::singleShot(50, &eventloop, SLOT(quit()));
+        eventloop.exec();
+    }
+
+
+
+    return;
+}
+cFeaExtractThread::~cFeaExtractThread()
+{
+
+    delete timer;
+    delete pro;
+}
+void cFeaExtractThread::process_finished(int exitCode,QProcess::ExitStatus exitStatus)
+{
+    running=false;
+    Q_UNUSED(exitCode);
+    cout<<"cFeaExtractThread "<<id<<":process finished.exitStatus:"<<exitStatus<<endl;
+    timer->stop();
+    if(exitStatus==QProcess::NormalExit)
+    {
+       sample->state=2;//feature extraction finished;
+       fe_state=0;
+    }
+    else
+    {
+        emit err_occured("cFeaExtractThread","SMILExtract crashed",*sample);
+    }
+    emit thread_finished(id);
+    return;
+}
+
+void cFeaExtractThread::timer_timeout()
+{
+    running=false;
+    pro->close();
+    cout<<"cFeaExtracThread "<<id<<":"<<"timer time out"<<endl;
+
+   // if(QFile::exists(sample->feafile))
+    {
+      //  QFile::remove(sample->feafile);
+    }
+
+    emit err_occured("cFeaExtracThread","timer time out",*sample);
+    emit thread_finished(id);
+    return;
+}
+
+cFeaExtractThread::cFeaExtractThread(quint64 id, QString feature_path,QString opensmile_path)
+{
+    this->id=id;
+    this->feature_path=feature_path;
+    this->opensmile_path=opensmile_path;
+    state=0;
+    fe_state=-1;
+    running=false;
+    timer=new QTimer;
+    timer->setInterval(5000);
+    timer->setSingleShot(true);
+    pro=new QProcess(this);
+    connect(timer,SIGNAL(timeout()),this,SLOT(timer_timeout()));
+    connect(pro,SIGNAL(finished(int,QProcess::ExitStatus)),this,SLOT(process_finished(int,QProcess::ExitStatus)));
+
+    return;
 }

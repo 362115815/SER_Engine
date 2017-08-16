@@ -9,25 +9,31 @@ SOURCES += main.cpp \
     clearfolders.cpp \
     opensmilecomp.cpp \
     ser_engine.cpp \
-    tensorflowcomp.cpp
+    tensorflowcomp.cpp \
+    recsample.cpp
 
 TEMPLATE = app
 
 HEADERS+=opensmilecomp.h \
         ser_engine.h\
         tensorflowcomp.h\
-        clearfolders.h
+        clearfolders.h \
+    recsample.h
 
 DEFINES += QT_DEPRECATED_WARNINGS
 
 
 
-#unix:!macx: LIBS += -L$$PWD/../../anaconda3/pkgs/python-3.6.1-2/lib/ -lpython3.6m
-
-#INCLUDEPATH += $$PWD/../../anaconda3/pkgs/python-3.6.1-2/include/python3.6m
-#DEPENDPATH += $$PWD/../../anaconda3/pkgs/python-3.6.1-2/include/python3.6m
 
 
 
 unix:!macx: LIBS += -lpython2.7
 INCLUDEPATH += /usr/include/python2.7
+
+#unix:!macx: LIBS += -L$$PWD/../../anaconda3/lib/ -lpython3.6m
+
+#INCLUDEPATH += $$PWD/../../anaconda3/include/python3.6m
+
+#unix:!macx: LIBS += -L$$PWD/../../anaconda3/lib/ -licui18n
+#unix:!macx: LIBS += -L$$PWD/../../anaconda3/lib/ -licuuc
+#unix:!macx: LIBS += -L$$PWD/../../anaconda3/lib/ -licudata
