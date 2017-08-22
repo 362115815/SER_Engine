@@ -53,8 +53,8 @@ feadir = rootdir + '/feature'
 logdir = rootdir + '/log'
 modeldir = rootdir + '/model'
 
-extra_train_set_path="/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise_all.arff" #"/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
-
+extra_train_set_path="" #"/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
+extra_val_set_path="/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise_all.arff"
 #config
 
 
@@ -70,8 +70,8 @@ gender_include = ['M','F']
 
 
 person_exclude=['03','06','07','09','18','14']
-scene_include=['babble']
-scenario_include=['bg']
+scene_include=['office']
+scenario_include=['meet','white','seat']
 db_include=['25']
 
 
@@ -80,11 +80,11 @@ db_include=['25']
 
 
 # 每个隐含层的节点数
-hidden_size = [1024,1024]
+hidden_size = [1024,512]
 acc_train_epsilon= 0.98
 epoch_num = 256
 _batch_size=256
-learning_rate = 0.0003
+learning_rate = 0.0005
 
 # predefine
 
@@ -113,6 +113,11 @@ print('*********************************************')
 #读入额外训练集
 if extra_train_set_path!="" :
     extra_train_set=dr.ArffReader(extra_train_set_path)
+
+#读入额外验证集
+if extra_val_set_path!="" :
+    extra_val_set=dr.ArffReader(extra_val_set_path)
+
 # read data
 data_set = []
 for i in range(set_num):
@@ -199,6 +204,43 @@ for i in range(set_num):
             train_set.append(fea)
             train_labels.append(onehot_label)
 
+
+    #额外验证集加入到val_set
+    if extra_val_set_path!="" :
+        for item in extra_val_set.data:
+            temp=item.strip().split(',')
+            name = temp[0].strip('\'').split('_')
+            person=name[0][:2]
+            if person in person_exclude:
+                continue
+            elif person.lstrip('0')!=str(i+1):
+                continue
+            gender = name[0][-1]
+            if gender not in gender_include:
+                continue
+            scene=name[-3]
+            if scene not in scene_include:
+                continue
+
+            scenario=name[-2]
+            if  scenario not in scenario_include:
+                continue
+            db=name[-1]
+            if db not in db_include:
+                continue
+
+            fea = [float(index) for index in temp[1:-1]]
+            emo_label=temp[-1]
+            if emo_label not in emo_classes.keys():
+                continue
+            onehot_label = np.zeros(class_num)
+            onehot_label[emo_classes[emo_label]] = 1         
+            val_set.append(fea)
+            val_labels.append(onehot_label)
+   
+
+
+
     val_set = np.array(val_set)
     val_labels = np.array(val_labels)
     train_set = np.array(train_set)
@@ -225,7 +267,8 @@ for i in range(set_num):
     print('person_exclude:%s'%(person_exclude))
     if extra_train_set_path!="" :
         print("extra_train_set:%s"%extra_train_set_path)
-
+    if extra_val_set_path!="" :
+        print("extra_val_set:%s"%extra_val_set_path)
 
     # 输出网络信息
     net_print = '------网络信息------\n'
