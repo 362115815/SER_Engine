@@ -11,9 +11,9 @@ class cEmoResult
 {
 public:
    cEmoResult();
-   string wav_name;//wav basename
-   stg emo_label;//ang,hap,neu,sad
-   float emo_prinrob[4];//probabilities of each emotion class, in order of ang, hap, neu, sad
+   string wav_name;//wave file basename
+   string emo_label;//ang,hap,neu,sad
+   float emo_prob[4];//probability of each emotion class, in order of ang, hap, neu, sad
    void reset();
 };
 
@@ -27,25 +27,23 @@ public:
     /*
     usage: constructor.
     parameters:
-        work_dir: path of the directory which contains a folder named SER_Engine.
+        work_dir: full path of the directory which contains a folder named SER_Engine.
     */
     cSER_Engine(QString work_dir=".");
 
 
     /*
     usage: initiate the engine,including model loading and temporal data clearing.
-    parameters:
-        work_dir: full path of the directory which contains a folder named SER_Engine.
     return:0 if success, otherwise -1.
     */
     int initiate();
 
 
     /*
-    usage:get a predicted emotion label of the input wav file.
+    usage:get a predicted emotion label of the input wave file.
     parameters:
         emo_result: emotion recognition result
-        wav_path: path of the wav file to be recognized, wav format should be in 16kHz, 16bit, mono.
+        wav_path: full path of the wave file(.wav) to be recognized, wave format should be in 16kHz, 16bit, mono.
     return: 0 if success, otherwise -1.
     */
     int voice_emo_recog( cEmoResult &  emo_result,const string wav_path);
