@@ -155,7 +155,8 @@ void cTensorFlowComp::run_trial(cRecSample & sample)
     string cmd;
     int result;
     //识别
-    cout<<"trial is comming.starting  emotion recognition..."<<endl;
+    cout<<"this is tensorflow speaking:";
+    cout<<"trial is comming.starting emotion recognition..."<<endl;
 
 
 

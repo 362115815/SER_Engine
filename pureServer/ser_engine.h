@@ -10,6 +10,7 @@
 #include<QTcpServer>
 #include<QTimer>
 #include<QMap>
+#include<QFile>
 #include"string"
 #include"recsample.h"
 using std::string;
@@ -38,6 +39,7 @@ public:
     bool engine_exstart;
 
 private:
+    QFile f;
     QTcpServer * server;
     QTcpSocket * socket;
     QString engine_path;
@@ -58,8 +60,12 @@ private:
     quint64 max_recognition_num;//max handle num
     QVector<cRecSample*> recognition_pool;//receive post
     QQueue<quint64> available_sample_id;
+    QQueue<QString> sample_to_recognize;//queue of samples waiting to be recognized
     quint64 get_available_id();//if return 0 ,no free id to use
     int resetSample(quint64 id);//resets Sample status in recognition pool, makes sample to be reused
+    int get_one_to_run();//get a sample to be recognized
+
+
 signals:
     void stop_all();
     void recognition_complete(QString predict_path);

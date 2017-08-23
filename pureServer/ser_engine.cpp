@@ -9,6 +9,7 @@
 #include<QDebug>
 #include"clearfolders.h"
 
+
 using std::cout;
 using std::endl;
 
@@ -16,7 +17,7 @@ using std::endl;
 
 cSER_Engine::cSER_Engine(QString work_dir)//work_dir目录必须是全路径，且目录下面有SER_Engine文件夹
 {
-    max_recognition_num=64;
+    max_recognition_num=128;
     set_workdir(work_dir);
     for(quint64 i=0;i<max_recognition_num;i++)
     {
@@ -71,8 +72,6 @@ cSER_Engine::cSER_Engine(QString work_dir)//work_dir目录必须是全路径，�
     connect(this,SIGNAL(stop_all()),openSmile,SLOT(stop_recorder()));
     connect(this,SIGNAL(fea_extact(cRecSample &)),openSmile,SLOT(fea_extract(cRecSample &)));
     connect(this,SIGNAL(new_sample_coming(cRecSample*)),openSmile,SLOT(new_sample_coming(cRecSample*)));
-
-
     connect(this,SIGNAL(err_occured(QString,QString,cRecSample&)),this,SLOT(exception_handle(QString,QString,cRecSample&)));
      //socket信号绑定
 
@@ -81,8 +80,8 @@ cSER_Engine::cSER_Engine(QString work_dir)//work_dir目录必须是全路径，�
 
 
      Py_Initialize();
-
-
+    f.setFileName("/home/emo/filerecv.txt");
+    f.open(QFile::WriteOnly);
 }
 
 int cSER_Engine::preboot_engine()
@@ -185,9 +184,50 @@ int cSER_Engine::preboot_engine()
 
     return 0;
 }
+ int cSER_Engine::get_one_to_run()//get a sample to be handled
+ {
+
+     if(sample_to_recognize.isEmpty())
+     {
+         return -1;
+     }
+
+
+     QDateTime time = QDateTime::currentDateTime();//获取系统现在的时间
+     QString str = time.toString("yyyy-MM-dd hh:mm:ss ddd"); //设置显示格式
+
+
+     QString filepath=sample_to_recognize.dequeue();
+
+     cout<<str.toStdString()+":"+"SER Server process file: "<<filepath.toStdString()<<endl;
+
+     QString filename= filepath.mid(filepath.lastIndexOf("/")+1);
+      filename = filename.left(filename.lastIndexOf(".wav"));
+     cout<<"filename="<<filename.toStdString()<<endl;
+     cout<<"applying a sample id for new sample"<<endl;
+
+     quint64 id=get_available_id();
+     if(id==0)
+     {
+         cout<<"no id available"<<endl;
+         recognition_pool[0]->init(filename,filepath);
+         exception_handle("cSER_sever","Server is busy",*recognition_pool[0]);
+         return -1;
+     }
+     cout<<"sample id="<<id<<endl;
+     recognition_pool[id]->init(filename,filepath);
+
+     emit new_sample_coming(recognition_pool[id]);
+
+     return 0;
+ }
   int cSER_Engine::resetSample(quint64 id)
   {
-      recognition_pool[id]->reset();
+      if(id==0)
+      {
+          return -1;
+      }
+      recognition_pool[id]->reset();   
       available_sample_id.enqueue(id);
       return 0;
   }
@@ -578,37 +618,27 @@ int cSER_Engine::handle_new_connection()//处理新的连接
 
 int cSER_Engine::socket_read_data()//读取socket的数据
 {
-
     QByteArray buffer;
     buffer=socket->readAll();
+    QString clientdata(buffer);
+    QTextStream out(&f);
+    out<<clientdata;
 
-    QString filepath(buffer);
-
-    cout<<"filepath="<<filepath.toStdString()<<endl;
-
-    QString filename= filepath.mid(filepath.lastIndexOf("/")+1);
-     filename = filename.left(filename.lastIndexOf(".wav"));
-    cout<<"filename="<<filename.toStdString()<<endl;
-    quint64 id=get_available_id();
-    if(id==0)
-    {
-        recognition_pool[0]->filename=filename;
-        emit err_occured("cSER_Engine","server is busy",*recognition_pool[0]);
-        return -1;
-    }
-
-    recognition_pool[id]->init(filename,filepath);
 
     QDateTime time = QDateTime::currentDateTime();//获取系统现在的时间
     QString str = time.toString("yyyy-MM-dd hh:mm:ss ddd"); //设置显示格式
+    cout<<endl<<endl<<endl;
+    cout<<str.toStdString()+":"+"receiving data from client: "<<clientdata.toStdString()<<endl;
+    QStringList filelist=clientdata.split("\n",QString::SkipEmptyParts);
+   // qDebug()<<"filelist="<<filelist<<"\tsize="<<filelist.size()<<endl;
+    cout<<"filelist:"<<endl;
+    for(qint64 i =0;i<filelist.size();i++)
+    {
+        sample_to_recognize.enqueue(filelist.at(i));
+        cout<<filelist.at(i).toStdString()<<endl;
+    }
+    get_one_to_run();
 
-    qDebug()<<str+":"+"receiving data from client: "<<filepath<<endl;
-
-    //socket->write("data received.");
-   // socket->flush();
-
-   //emit fea_extact(*recognition_pool[id]);
-    emit new_sample_coming(recognition_pool[id]);
 
     return 0;
 }
@@ -625,7 +655,8 @@ int cSER_Engine::exception_handle(QString comp, QString err_msg, cRecSample &sam
     socket->write(out_data.toLatin1());
     socket->flush();
     cout<<"error msg sended."<<endl;
-    sample.reset();
+    resetSample(sample.id);
+    get_one_to_run();
     return 0;
 }
 
@@ -636,7 +667,7 @@ int cSER_Engine::send_predict_result(cRecSample&sample,QString predict,QStringLi
         return -1;
     }
     QString voice_seg=sample.filename;
-    cout<<"sample id="<<sample.id<<":sending predict result..."<<endl;
+    cout<<"sample id="<<sample.id<<":sending predicted result..."<<endl;
     QString out_data="";
 
     QString str="";
@@ -651,10 +682,10 @@ int cSER_Engine::send_predict_result(cRecSample&sample,QString predict,QStringLi
 
     socket->write(out_data.toLatin1());
     socket->flush();
-    cout<<"predict result sended"<<endl;
+    cout<<"predicted result sent"<<endl;
 
-    sample.reset();
-
+    resetSample(sample.id);
+    get_one_to_run();
    return 0;
 }
 
@@ -741,6 +772,7 @@ int cSER_Engine::set_workdir(QString work_dir)//设置工作目录
     }
     //Py_FinalizeEx();
     Py_Finalize();
+    f.close();
 }
 
 void cSpyThread::set_workdir(QString work_dir)

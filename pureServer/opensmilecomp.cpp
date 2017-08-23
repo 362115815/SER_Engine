@@ -15,7 +15,7 @@ cOpenSmileComp::cOpenSmileComp(QString workdir)
 {
     set_workdir(workdir);
 
-    max_thread_num=8;
+    max_thread_num=24;
     /*
     cout<<"work_dir="<<workdir.toStdString()<<endl;
     cout<<"feature_path="<<feature_path.toStdString()<<endl;
@@ -206,9 +206,8 @@ void cOpenSmileComp::stop_recorder()//停止录音
          return -1;
      }
      cRecSample * recSample=samples_toExtract.dequeue();
-     FE_thread_pool[id]->start_FExtract(recSample);
      cout<<"opensmile thread run: id="<<id<<endl;
-
+     FE_thread_pool[id]->start_FExtract(recSample);
      return 0;
  }
 
@@ -305,6 +304,7 @@ int cOpenSmileComp::fea_extract(cRecSample & sample)//提取特征
 
 int cFeaExtractThread::start_FExtract(cRecSample * sample)//start feature extraction
 {
+    cout<<"start_FExtract"<<endl;
     this->sample=sample;
     state=1;
     running=true;
@@ -333,6 +333,7 @@ void cFeaExtractThread::run()
             " -I "+wavfile+" -csvoutput "+feafile;
     cout<<"feature extarct cmd:"<<cmd.toStdString()<<endl;
     cout<<"cFeaExtracTread "<<id<<":timer started"<<endl;
+    //sleep(2);
     timer->start();
     pro->start(cmd);
     while(running)
@@ -358,6 +359,7 @@ void cFeaExtractThread::process_finished(int exitCode,QProcess::ExitStatus exitS
     Q_UNUSED(exitCode);
     cout<<"cFeaExtractThread "<<id<<":process finished.exitStatus:"<<exitStatus<<endl;
     timer->stop();
+    cout<<"timer stopped"<<endl;
     if(exitStatus==QProcess::NormalExit)
     {
        sample->state=2;//feature extraction finished;
