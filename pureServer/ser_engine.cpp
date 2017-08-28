@@ -17,6 +17,14 @@ using std::endl;
 
 cSER_Engine::cSER_Engine(QString work_dir)//work_dir目录必须是全路径，且目录下面有SER_Engine文件夹
 {
+#ifdef OUT_LOG
+    fout_recv.open("/home/emo/SER/SER_Server_Release/SER_Engine/log/sample_recv.txt");
+    fout_get_one.open("/home/emo/SER/SER_Server_Release/SER_Engine/log/get_one.txt");
+    fout_send.open("/home/emo/SER/SER_Server_Release/SER_Engine/log/result_send.txt");
+    sample_handled_num=0;
+    sample_recv_num=0;
+    get_one_num=0;
+#endif
     max_recognition_num=128;
     set_workdir(work_dir);
     for(quint64 i=0;i<max_recognition_num;i++)
@@ -80,8 +88,8 @@ cSER_Engine::cSER_Engine(QString work_dir)//work_dir目录必须是全路径，�
 
 
      Py_Initialize();
-    f.setFileName("/home/emo/filerecv.txt");
-    f.open(QFile::WriteOnly);
+    //f.setFileName("/home/emo/filerecv.txt");
+    //f.open(QFile::WriteOnly);
 }
 
 int cSER_Engine::preboot_engine()
@@ -198,6 +206,9 @@ int cSER_Engine::preboot_engine()
 
 
      QString filepath=sample_to_recognize.dequeue();
+     get_one_num++;
+     fout_get_one<<"get_one_num="<<get_one_num<<"\t"<<filepath.toStdString();
+
 
      cout<<str.toStdString()+":"+"SER Server process file: "<<filepath.toStdString()<<endl;
 
@@ -212,10 +223,15 @@ int cSER_Engine::preboot_engine()
          cout<<"no id available"<<endl;
          recognition_pool[0]->init(filename,filepath);
          exception_handle("cSER_sever","Server is busy",*recognition_pool[0]);
+         QEventLoop eventloop;
+         QTimer::singleShot(1000, &eventloop, SLOT(quit())); //wait 1s
+         eventloop.exec();
+         fout_get_one<<"\t sample state="<<0<<endl;
          return -1;
      }
      cout<<"sample id="<<id<<endl;
      recognition_pool[id]->init(filename,filepath);
+     fout_get_one<<"\t sample state="<<recognition_pool[id]->state<<endl;
 
      emit new_sample_coming(recognition_pool[id]);
 
@@ -608,6 +624,7 @@ int cSER_Engine::handle_new_connection()//处理新的连接
     socket=server->nextPendingConnection();
 
     connect(socket,SIGNAL(readyRead()),this,SLOT(socket_read_data()));
+    connect(socket,SIGNAL(disconnected()),this,SLOT(socket_read_data()));
     //connect(socket,SIGNAL(disconnected()),socket,SLOT(deleteLater()));
     cout<<"new connection handled"<<endl;
 
@@ -621,8 +638,8 @@ int cSER_Engine::socket_read_data()//读取socket的数据
     QByteArray buffer;
     buffer=socket->readAll();
     QString clientdata(buffer);
-    QTextStream out(&f);
-    out<<clientdata;
+   // QTextStream out(&f);
+   // out<<clientdata;
 
 
     QDateTime time = QDateTime::currentDateTime();//获取系统现在的时间
@@ -636,8 +653,16 @@ int cSER_Engine::socket_read_data()//读取socket的数据
     {
         sample_to_recognize.enqueue(filelist.at(i));
         cout<<filelist.at(i).toStdString()<<endl;
+        sample_recv_num++;
+        #ifdef OUT_LOG
+        fout_recv<<"sample_recv_num="<<sample_recv_num<<"\t"<<filelist.at(i).toStdString()<<endl;
+        fout_recv.flush();
+        #endif
+       // sample_recv_num++;
+       // fout1<<"sample_recv_num="<<sample_recv_num<<"\t"<<filelist.at(i).toStdString()<<endl;
+        get_one_to_run();
     }
-    get_one_to_run();
+
 
 
     return 0;
@@ -649,11 +674,15 @@ int cSER_Engine::exception_handle(QString comp, QString err_msg, cRecSample &sam
     {
         return -1;
     }
+    sample_handled_num++;
     cout<<"SER_Server: ERROR : Compnent: "<<comp.toStdString()<<"  Exception: "<<err_msg.toStdString()+"  Filename:"<<sample.filename.toStdString()<<endl;
-    cout<<"sample id="<<sample.id<<":sending error msg to client..."<<endl;
+    cout<<"sample_handled_num="<<sample_handled_num<<"\tsample id="<<sample.id<<":sending error msg to client..."<<endl;
     QString out_data="ERROR:  Compnent:"+comp+"  Exception:"+err_msg+"  Filename:"+sample.filename+"\n";
-    socket->write(out_data.toLatin1());
-    socket->flush();
+   // socket->write(out_data.toLatin1());
+   // socket->flush();
+
+    fout_send<<"sample_handled_num="<<sample_handled_num<<"\t sample id="<<sample.id<<"\t"<<out_data.toStdString();
+    fout_send.flush();
     cout<<"error msg sended."<<endl;
     resetSample(sample.id);
     get_one_to_run();
@@ -666,8 +695,9 @@ int cSER_Engine::send_predict_result(cRecSample&sample,QString predict,QStringLi
     {
         return -1;
     }
+    sample_handled_num++;
     QString voice_seg=sample.filename;
-    cout<<"sample id="<<sample.id<<":sending predicted result..."<<endl;
+    cout<<"sample_handled_num="<<sample_handled_num<<"\t sample id="<<sample.id<<":sending predicted result..."<<endl;
     QString out_data="";
 
     QString str="";
@@ -682,8 +712,9 @@ int cSER_Engine::send_predict_result(cRecSample&sample,QString predict,QStringLi
 
     socket->write(out_data.toLatin1());
     socket->flush();
+    fout_send<<"sample_handled_num="<<sample_handled_num<<"\t"<<out_data.toStdString();
+    fout_send.flush();
     cout<<"predicted result sent"<<endl;
-
     resetSample(sample.id);
     get_one_to_run();
    return 0;
@@ -741,7 +772,9 @@ int cSER_Engine::set_workdir(QString work_dir)//设置工作目录
  cSER_Engine::~cSER_Engine()
 {
 
-
+    fout_get_one.close();\
+    fout_recv.close();
+    fout_send.close();
 
     if(spyThread_running||openSmile_runnig||tensorFlow_runnig)
     {
@@ -770,7 +803,7 @@ int cSER_Engine::set_workdir(QString work_dir)//设置工作目录
     {
         delete recognition_pool[i];
     }
-    //Py_FinalizeEx();
+   // Py_FinalizeEx();
     Py_Finalize();
     f.close();
 }

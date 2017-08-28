@@ -8,12 +8,17 @@
 #include<QThread>
 #include"recsample.h"
 #include<QVector>
+#include<fstream>
 class cFeaExtractThread;
 
 class cOpenSmileComp:public QObject
 {
     Q_OBJECT
 private:
+    quint64 sample_recv_num;
+    quint64 sample_handled_num;
+    std::ofstream fout_handled;
+    std::ofstream fout_recv;
     QProcess * pro;
     QString opensmile_path;
     QString feature_path;

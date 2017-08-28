@@ -18,7 +18,8 @@ HEADERS+=opensmilecomp.h \
         ser_engine.h\
         tensorflowcomp.h\
         clearfolders.h \
-    recsample.h
+    recsample.h \
+    config.h
 
 DEFINES += QT_DEPRECATED_WARNINGS
 

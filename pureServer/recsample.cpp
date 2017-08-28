@@ -9,7 +9,7 @@ cRecSample::cRecSample(quint64 id, QObject *parent): QObject(parent)
     state=0;
     this->id=id;
     timer=new QTimer;
-    timer->setInterval(10000);
+    timer->setInterval(5000);
     timer->setSingleShot(true);
     connect(timer,SIGNAL(timeout()),this,SLOT(timer_timeout()));
     return ;
@@ -23,7 +23,7 @@ cRecSample::~cRecSample()
 
 void cRecSample::timer_timeout()
 {
-    emit err_occured("cSample","Timer time out",*this);
+    emit err_occured("cRecSample","Timer time out",*this);
 }
 
 void cRecSample::init(QString filename,QString filepath)
@@ -33,6 +33,7 @@ void cRecSample::init(QString filename,QString filepath)
     this->state=1;
     this->feafile="";
     this->resultfile="";
+    timer->start();
     return;
 }
 

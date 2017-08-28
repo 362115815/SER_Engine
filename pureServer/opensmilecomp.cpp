@@ -15,7 +15,12 @@ cOpenSmileComp::cOpenSmileComp(QString workdir)
 {
     set_workdir(workdir);
 
-    max_thread_num=24;
+    sample_recv_num=0;
+
+    fout_recv.open("/home/emo/SER/SER_Server_Release/SER_Engine/log/opensmile_recv.txt");
+    fout_handled.open("/home/emo/SER/SER_Server_Release/SER_Engine/log/opensmile_handled.txt");
+    max_thread_num=8;
+
     /*
     cout<<"work_dir="<<workdir.toStdString()<<endl;
     cout<<"feature_path="<<feature_path.toStdString()<<endl;
@@ -163,6 +168,8 @@ int cOpenSmileComp::stop_record()
 
 cOpenSmileComp::~cOpenSmileComp()
 {
+    fout_recv.close();
+    fout_handled.close();
     cout<<"!OPENSMILE"<<endl;
     if(pro)
     {
@@ -214,6 +221,8 @@ void cOpenSmileComp::stop_recorder()//停止录音
  int cOpenSmileComp::new_sample_coming(cRecSample * sample)
  {
       cout<<"This is opensmile speaking : new sample coming :"<<sample->filepath.toStdString()<<endl;
+      fout_recv<<"sample_recv_num="<<++sample_recv_num<<"\t"<<sample->filepath.toStdString()<<endl;
+      fout_recv.flush();
      samples_toExtract.enqueue(sample);
      get_one_to_run();
      return 0;
@@ -226,13 +235,18 @@ int cOpenSmileComp::fea_extract(QString wavfile)//提取特征
 }
 int cOpenSmileComp::thread_finished(quint64 id)//a thread finished, reset it and add it to the queue of available ids
 {
+
+    fout_handled.flush();
     if(FE_thread_pool[id]->sample->state==2)
     {
+        fout_handled<<"sample_handled_num="<<++sample_handled_num<<"\t id="<<id<<"\t sample state="<<FE_thread_pool[id]->sample->state \
+                   <<"\t"<<FE_thread_pool[id]->sample->filepath.toStdString()<<endl;
         emit fea_extra_finished(*(FE_thread_pool[id]->sample));
     }
+    //cout<<"cOpenSmileComp::thread_finished: sample state="<<FE_thread_pool[id]->sample->state<<endl;
 
     resetFEThread(id);
-
+    get_one_to_run();
     return 0;
 }
 

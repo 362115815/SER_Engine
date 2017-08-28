@@ -13,7 +13,12 @@ cTensorFlowComp::cTensorFlowComp(QString work_dir)
 {
     set_workdir(work_dir);
     tf_module_imported=false;
-
+#ifdef OUT_LOG
+    fout_recv.open("/home/emo/SER/SER_Server_Release/SER_Engine/log/tensorflow_recv.txt");
+    fout_handled.open("/home/emo/SER/SER_Server_Release/SER_Engine/log/tensorflow_handled.txt");
+    sample_handled_num=0;
+    sample_recv_num=0;
+#endif
 }
 void cTensorFlowComp::set_workdir(QString work_dir)
 {
@@ -25,7 +30,12 @@ void cTensorFlowComp::set_workdir(QString work_dir)
 }
 cTensorFlowComp::~cTensorFlowComp()
 {
+#ifdef OUT_LOG
+    fout_handled.close();
+    fout_recv.close();
+#endif
     stop();
+
 }
 int cTensorFlowComp::start_ckpt()
 {
@@ -147,7 +157,10 @@ int cTensorFlowComp::start()
  }
 void cTensorFlowComp::run_trial(cRecSample & sample)
 {
-
+#ifdef OUT_LOG
+    fout_recv<<"sample_recv_num="<<++sample_recv_num<<"\t"<<sample.filepath.toStdString()<<endl;
+    fout_recv.flush();
+#endif
     QString fea_path=sample.feafile;
     QString result_path=result_dir+"/"+sample.filename+".predict";
     sample.resultfile=result_path;
@@ -175,7 +188,7 @@ void cTensorFlowComp::run_trial(cRecSample & sample)
         return;
     }
     sample.state=3;
-    emit recogition_complete(result_path);
+   // emit recogition_complete(result_path);
     ifstream fin(result_path.toStdString());
     string predict;
     string prob;
@@ -189,8 +202,13 @@ void cTensorFlowComp::run_trial(cRecSample & sample)
 
     QFile::remove(fea_path);
     QFile::remove(result_path);
+#ifdef OUT_LOG
+    fout_handled<<"sample_handled_num="<<++sample_handled_num<<"\t"<<sample.filepath.toStdString()<<"\t sample state="<<sample.state<<endl;
+    fout_handled.flush();
+#endif
     emit out_predict_result(sample,QString::fromStdString(predict),probability);
-    cout<<"emotion is being recognized."<<endl;
+
+    cout<<"emotion has been recognized."<<endl;
     return;
 }
 

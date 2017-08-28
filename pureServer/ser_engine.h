@@ -12,6 +12,7 @@
 #include<QMap>
 #include<QFile>
 #include"string"
+#include<fstream>
 #include"recsample.h"
 using std::string;
 
@@ -39,6 +40,16 @@ public:
     bool engine_exstart;
 
 private:
+
+#ifdef OUT_LOG
+    std::ofstream fout_recv;
+    std::ofstream fout_send;
+    std::ofstream fout_get_one;
+    quint64 sample_handled_num;//sample num handled
+    quint64 sample_recv_num;//sample num receive
+    quint64 get_one_num;//num of get one
+#endif
+
     QFile f;
     QTcpServer * server;
     QTcpSocket * socket;

@@ -4,6 +4,8 @@
 #include <QObject>
 #include<QStringList>
 #include"recsample.h"
+#include<fstream>
+#define OUT_LOG
 class cTensorFlowComp:public QObject
 {
     Q_OBJECT
@@ -15,6 +17,10 @@ public:
     int stop();
     void set_workdir(QString work_dir);
 private:
+    quint64 sample_recv_num;
+    quint64 sample_handled_num;
+    std::ofstream fout_recv;
+    std::ofstream fout_handled;
     QString model_path;
     QString work_dir;
     QString engine_path;
