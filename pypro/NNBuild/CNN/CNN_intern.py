@@ -10,9 +10,10 @@ import sys
 import datetime
 import data_reader as dr
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '15'
+os.environ['CUDA_VISIBLE_DEVICES'] = '11'
+
 '''
-This is an LSTM network building script
+This is a CNN network building script
 '''
 
 class CDataSet():
@@ -45,6 +46,7 @@ class CDataSet():
         self.batch_id = end_id
         return batch_data, batch_labels,num 
 
+
 # setting path
 
 rootdir = '/data/mm0105.chen/wjhan/xiaomin'
@@ -52,42 +54,35 @@ feadir = rootdir + '/feature'
 logdir = rootdir + '/log'
 modeldir = rootdir + '/model'
 
-extra_train_set_path=["/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise.arff"]
-extra_val_set_path=""#"/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise_all.arff"
+extra_train_set_path=""#"/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
+extra_val_set_path="" #"/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise_all.arff"
+
 #config
-
-
 output_log=1
 save_model=1
-timestep_size = 1
+
 corpus ='intern'
-which_copy='byperson_new'
-do_dropout=1
+which_copy='byperson'
+do_dropout=0
 _keep_prob=[0.5,0.5,0.5,0.5,0.2,0.1]
 
 gender_include = ['M','F']
 
-
-person_exclude=['03','06','07','09','18']
+person_exclude=['03','06','07','09','18','14']
 scene_include=['office']
 scenario_include=['meet','white','seat']
-db_include=['0']
+db_include=['25']
 
 
-
-
-
-
-# 每个隐含层的节点数
-hidden_size = [1024,512]
 acc_train_epsilon= 0.98
-epoch_num =128
-_batch_size=1024
-learning_rate = 0.0001
+epoch_num = 256
+_batch_size=256
+learning_rate = 0.0005
+
 
 # predefine
 
-set_num = 21
+set_num = 20
 fea_dim = 88
 emo_classes = {'ang': 0, 'hap': 1, 'nor': 2, 'sad': 3,'neu':2,'exc':1}
 
@@ -104,9 +99,10 @@ if output_log == 1:
     sys.stdout = fin
 
 print('*********************************************')
-print('******* Run LSTM %s ********' % (now.strftime('%Y-%m-%d %H:%M:%S')))
+print('******** Run CNN %s ********' % (now.strftime('%Y-%m-%d %H:%M:%S')))
 print('*********************************************')
-print('Add new bulu noise')
+
+
 
 
 #读入额外训练集
@@ -238,12 +234,11 @@ for i in range(set_num):
             val_labels.append(onehot_label)
    
 
-
-
     val_set = np.array(val_set)
     val_labels = np.array(val_labels)
     train_set = np.array(train_set)
     train_labels = np.array(train_labels)
+
 
     # normalize
     # z-score
@@ -269,22 +264,23 @@ for i in range(set_num):
     if extra_val_set_path!="" :
         print("extra_val_set:%s"%extra_val_set_path)
 
+
+
     # 输出网络信息
     net_print = '------网络信息------\n'
-    net_print += '网络类型:LSTM\n'
-    net_print += '网络结构:'+str(fea_dim)+":"
+    net_print += '网络类型:CNN\n'
+    net_print += '网络结构:'+str(fea_dim)+":\n"
+    '''
     for i_t in hidden_size:
         net_print+=str(i_t)+":"
     net_print+=str(class_num)
     print(net_print)
-
-    # 输出网络信息
+    '''
+    # 输出额外训练集信息
     print('------额外训练集------\n')
     print('scene_include:%s'%(scene_include))
     print('scenario_include:%s'%(scenario_include))
     print('db_include:%s'%(db_include))
-
-
 
     # network define
     g = tf.Graph()
@@ -296,51 +292,160 @@ for i in range(set_num):
         batch_size = tf.placeholder(tf.int32,name='batch_size') 
         x = tf.placeholder('float', [None, fea_dim], name='input')
         y_ = tf.placeholder('float', [None, class_num], name='label')
-        x_lengths=tf.placeholder('int32',[None],name='x_lengths')
+
+
         keep_prob=tf.placeholder(tf.float32,name='keep_prob')
         # do z-socre
-        x_normalized=tf.nn.batch_normalization(x, train_mean, train_var, 0, 2, 0.001, name="normalize")
-      #  print(type(x_normalized))
-      #  print(x_normalized.shape)
-      #  exit()
-
-
-        #x_panding=tf.Variable([[[2,3],[4,5]]],validate_shape=False,dtype=tf.float32,name='x_panding')
-       # x_panding=tf.Variable([x_normalized],validate_shape=False)
-      #  x_panding.assign([x_normalized])
-       # x_panding=tf.assign(x_panding,[x_normalized],validate_shape= False)
-        x_panding=tf.reshape(x_normalized,[1,-1,fea_dim])
-      #  print(np.shape(x_panding))
-        
-        hidden_layer_num=len(hidden_size)
-        hidden_layer=[]
-
-        for h_l in range(hidden_layer_num):
-            # add an LSTM layer
-            lstm_cell = rnn.BasicLSTMCell(num_units=hidden_size[h_l], forget_bias=1.0, state_is_tuple=True)
-            # add dropout layer
-            if do_dropout==1:
-                lstm_cell = rnn.DropoutWrapper(cell=lstm_cell, input_keep_prob=1.0, output_keep_prob=keep_prob)
-            hidden_layer.append(lstm_cell)
-
-
-        # 调用 MultiRNNCell 来实现多层 LSTM
         # 
-        mlstm_cell = rnn.MultiRNNCell(hidden_layer, state_is_tuple=True)
-
-        # 用全零来初始化state
+        x_normalized=tf.nn.batch_normalization(x, train_mean, train_var, 0, 2, 0.001, name="normalize")
+        x_reshape=tf.reshape(x_normalized,[-1,fea_dim,1])
         
-        init_state=mlstm_cell.zero_state(batch_size, dtype=tf.float32)
+        ### CONV 1###
+        conv1_filters=32
+        conv1_kernel_size=[3]
+        conv1_strides=[1]
+        pool1_size=[2]
+        pool1_strides=[2]
 
-        outputs, last_states=tf.nn.dynamic_rnn(cell=mlstm_cell,dtype=tf.float32,
-        inputs= x_panding, initial_state=init_state, time_major=True, sequence_length=x_lengths)
+        net_print+="conv1:\n"
+        net_print+="/////////////////\n"
+        net_print+="filters:"+str(conv1_filters)+"\n"+\
+        "kernel_size:"+str(conv1_kernel_size)+"\n"+"strides:"+str(conv1_strides)+"\n"
 
-        h_state=last_states[-1][-1]
+        net_print+="pool1:\n"
+        net_print+="pool method:max\n"
+        net_print+="pool size:"+str(pool1_size)+"\n"
+        net_print+="pool strides:"+str(pool1_strides)+"\n"
+        net_print+="/////////////////\n"
+ 
 
-        W = tf.Variable(tf.truncated_normal([hidden_size[-1], class_num], stddev=0.1), dtype=tf.float32,name='W_output')
-        bias = tf.Variable(tf.constant(0.1,shape=[class_num]), dtype=tf.float32,name='b_output')
-        y = tf.nn.softmax(tf.matmul(h_state, W) + bias, name='predict')
+        h_conv1=tf.layers.conv1d(x_reshape,filters=conv1_filters,kernel_size=conv1_kernel_size,strides=conv1_strides,activation=tf.nn.relu,\
+            kernel_initializer=tf.contrib.layers.xavier_initializer())
 
+        h_pool1=tf.layers.max_pooling1d(h_conv1,pool_size=pool1_size,strides=pool1_strides)
+
+
+        
+        ### CONV 2 ###   
+        conv2_filters=48
+
+        conv2_kernel_size=[3]
+
+        conv2_strides=[1]
+
+        pool2_size=[2]
+
+        pool2_strides=[2]
+
+        net_print+="conv2:\n"
+        net_print+="/////////////////\n"
+        net_print+="filters:"+str(conv2_filters)+"\n"+\
+        "kernel_size:"+str(conv2_kernel_size)+"\n"+"strides:"+str(conv2_strides)+"\n"
+
+        net_print+="pool2:\n"
+        net_print+="pool method:max\n"
+        net_print+="pool size:"+str(pool2_size)+"\n"
+        net_print+="pool strides:"+str(pool2_strides)+"\n"
+        net_print+="/////////////////\n"
+
+
+        h_conv2=tf.layers.conv1d(h_pool1,filters=conv2_filters,kernel_size=conv2_kernel_size,strides=conv2_strides,activation=tf.nn.relu,\
+            kernel_initializer=tf.contrib.layers.xavier_initializer())
+        h_pool2=tf.layers.max_pooling1d(h_conv2,pool_size=pool2_size,strides=pool2_strides)
+             
+               
+        ##### CONV 3 ######
+
+        conv3_filters=64
+
+        conv3_kernel_size=[3]
+
+        conv3_strides=[1]
+
+        pool3_size=[2]
+
+        pool3_strides=[2]
+
+        net_print+="conv3:\n"
+        net_print+="/////////////////\n"
+        net_print+="filters:"+str(conv3_filters)+"\n"+\
+        "kernel_size:"+str(conv3_kernel_size)+"\n"+"strides:"+str(conv3_strides)+"\n"
+
+        net_print+="pool3:\n"
+        net_print+="pool method:max\n"
+        net_print+="pool size:"+str(pool3_size)+"\n"
+        net_print+="pool strides:"+str(pool3_strides)+"\n"
+        net_print+="/////////////////\n"
+
+
+        h_conv3=tf.layers.conv1d(h_pool2,filters=conv3_filters,kernel_size=conv3_kernel_size,strides=conv3_strides,activation=tf.nn.relu,\
+            kernel_initializer=tf.contrib.layers.xavier_initializer())
+        h_pool3=tf.layers.max_pooling1d(h_conv3,pool_size=pool3_size,strides=pool3_strides)
+        
+
+               
+        ##### CONV 4 ######
+
+        conv4_filters=96
+
+        conv4_kernel_size=[3]
+
+        conv4_strides=[1]
+
+        pool4_size=[2]
+
+        pool4_strides=[2]
+
+        net_print+="conv4:\n"
+        net_print+="/////////////////\n"
+        net_print+="filters:"+str(conv4_filters)+"\n"+\
+        "kernel_size:"+str(conv4_kernel_size)+"\n"+"strides:"+str(conv4_strides)+"\n"
+
+        net_print+="pool4:\n"
+        net_print+="pool method:max\n"
+        net_print+="pool size:"+str(pool4_size)+"\n"
+        net_print+="pool strides:"+str(pool4_strides)+"\n"
+        net_print+="/////////////////\n"
+
+
+        h_conv4=tf.layers.conv1d(h_pool3,filters=conv4_filters,kernel_size=conv4_kernel_size,strides=conv4_strides,activation=tf.nn.relu,\
+            kernel_initializer=tf.contrib.layers.xavier_initializer())
+        h_pool4=tf.layers.max_pooling1d(h_conv4,pool_size=pool4_size,strides=pool4_strides)
+        
+        ##### CONV 5 ######
+
+        conv5_filters=128
+
+        conv5_kernel_size=[3]
+
+        conv5_strides=[1]
+
+        pool5_size=[2]
+
+        pool5_strides=[2]
+
+        net_print+="conv5:\n"
+        net_print+="/////////////////\n"
+        net_print+="filters:"+str(conv5_filters)+"\n"+\
+        "kernel_size:"+str(conv5_kernel_size)+"\n"+"strides:"+str(conv5_strides)+"\n"
+
+        net_print+="pool5:\n"
+        net_print+="pool method:max\n"
+        net_print+="pool size:"+str(pool5_size)+"\n"
+        net_print+="pool strides:"+str(pool5_strides)+"\n"
+        net_print+="/////////////////\n"
+
+
+        h_conv5=tf.layers.conv1d(h_pool4,filters=conv5_filters,kernel_size=conv5_kernel_size,strides=conv5_strides,activation=tf.nn.relu,\
+            kernel_initializer=tf.contrib.layers.xavier_initializer())
+        h_pool5=tf.layers.max_pooling1d(h_conv5,pool_size=pool5_size,strides=pool5_strides)
+
+        h_flat=tf.contrib.layers.flatten(h_pool5)
+
+        h_full1=tf.contrib.layers.fully_connected(h_flat,1024,activation_fn=tf.nn.softmax)
+        #h_full2=tf.contrib.layers.fully_connected(h_full1,512,activation_fn=tf.nn.softmax)
+
+        y=tf.contrib.layers.fully_connected(h_full1,class_num,activation_fn=tf.nn.softmax)
         cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y, labels=y_))
         optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
 
@@ -349,21 +454,26 @@ for i in range(set_num):
         correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
 
+        print(net_print)
+
+
+
         # run epoch
         if save_model == 1:
             saver = tf.train.Saver()
         acc_val_max=-1
-
         train_data = CDataSet(train_set, train_labels)
 
         with tf.Session() as sess:
             sess.run(init)
+
             avg_cost = []
             acc_val = []
             acc_train = []
             if save_model == 1:
                 modelpath = cv_dir + '/modelinit.ckpt'
                 saver.save(sess, modelpath, global_step=0)
+
             for epoch in range(epoch_num):
                 print("\nStrart Epoch %d traing:" % (epoch))
                 if save_model == 1:
@@ -374,50 +484,53 @@ for i in range(set_num):
                     keep_prob_index=-1
                 else:
                     keep_prob_index=epoch
+
                 while True:
                     batch = train_data.next_batch(_batch_size)
                     # print('\tbatch_num=%d,batch_size=%d'%(batch_num,batch[2]))
                     if batch[2] == 0:
                         break
-                   # print(batch[2])
-                    
+                    '''
+                    o2,o1,o= sess.run([x_reshape,h_pool1,h_conv1], feed_dict={x: batch[0], y_:batch[1],
+                    batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
+                    print('x_reshape=')
+                    #print(o2)
+                    print(o2.shape)
 
-                   ##test
-                    '''
-                    o,h = sess.run([outputs, last_states], feed_dict={x: batch[0], y_:batch[1],
-                        x_lengths:np.ones(batch[2], dtype='int'),batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
-                    print('o=')
-                    print(o)
-                    print('\n\n')
-                    print('h=')
-                    print(h)
-                    print('\n\n')
-                    print(h[-1][-1])
+                    print('h_conv1=\n')
+                    #print(o)
+                    print(o.shape)
+                    print('h_pool1=\n')
+                    #print(o1)
+                    print(o1.shape)
+                    exit()
                     '''
                     '''
-                    o1,o= sess.run([x_normalized,x_panding], feed_dict={x: batch[0], y_:batch[1],
-                        x_lengths:np.ones(batch[2], dtype='int'),batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
-                    print('o1=')
-                    print(o1)
-                    print('o=')
-                    print(o)             
+                    o1,o2=sess.run([h_flat,h_full1],feed_dict={x:batch[0],y_:batch[1],batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
+
+                    print('h_hull1 shape:')
+                    print(o2.shape)
+                    print('\n')
+                    print('h_flat shape:')
+                    print(o1.shape)
+                    print('\n')
                     exit()
                     '''
 
                     _,c=sess.run([optimizer, cost], feed_dict={x: batch[0], y_:batch[1],
-                    x_lengths:np.ones(batch[2], dtype='int'),batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
+                    batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
+
                     batch_num = batch_num + 1
                     batch_cost = (batch_num - 1) / batch_num * batch_cost + c / batch_num
                 avg_cost.append(batch_cost)
-                acc_val.append(sess.run(accuracy, feed_dict={x: val_set, y_: val_labels, x_lengths :np.ones(len(val_labels),dtype='int'),batch_size:len(val_labels),keep_prob:1.0}))
-                acc_train.append(sess.run(accuracy, feed_dict={x:train_set, y_: train_labels, x_lengths:np.ones(len(train_labels),dtype='int'),batch_size:len(train_labels),keep_prob:1.0}))
+                acc_val.append(sess.run(accuracy, feed_dict={x: val_set, y_: val_labels,batch_size:len(val_labels),keep_prob:1.0}))
+                acc_train.append(sess.run(accuracy, feed_dict={x:train_set, y_: train_labels,batch_size:len(train_labels),keep_prob:1.0}))
                 print('Epoch %d finished' % (epoch))
                 print('\tavg_cost = %f' % (avg_cost[epoch]))
                 print('\tacc_train = %f' % (acc_train[epoch]))
                 print('\tacc_val = %f' % (acc_val[epoch]))
                 if save_model == 1:
-                   if acc_val_max < acc_val[epoch]:
-                  # if epoch %2==0 :
+                    if acc_val_max < acc_val[epoch]:
                         rt = saver.save(sess, modelpath)
                         acc_val_max = acc_val[epoch]
                         print('model saved in %s' % (rt))
@@ -446,4 +559,5 @@ if output_log == 1:
     sys.stdout = savedStdout
     fin.close()
 print('Training finished.')
+
 

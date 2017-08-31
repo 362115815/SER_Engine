@@ -53,6 +53,7 @@ logdir = rootdir + '/log'
 modeldir = rootdir + '/model'
 
 extra_train_set_path=["/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise.arff"]
+#"/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise.arff","/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
 extra_val_set_path=""#"/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise_all.arff"
 #config
 
@@ -83,7 +84,7 @@ hidden_size = [1024,512]
 acc_train_epsilon= 0.98
 epoch_num =128
 _batch_size=1024
-learning_rate = 0.0001
+learning_rate = 0.0005
 
 # predefine
 
@@ -106,12 +107,15 @@ if output_log == 1:
 print('*********************************************')
 print('******* Run LSTM %s ********' % (now.strftime('%Y-%m-%d %H:%M:%S')))
 print('*********************************************')
-print('Add new bulu noise')
+print('Remark: Add new bulu noise')
 
 
 #读入额外训练集
-if extra_train_set_path!="" :
-    extra_train_set=dr.ArffReader(extra_train_set_path)
+if len(extra_train_set_path)!=0 :
+    for set_path in extra_train_set_path:
+        extra_train_set=dr.ArffReader(extra_train_set_path)
+
+print(len(extra_train_set.data))
 
 #读入额外验证集
 if extra_val_set_path!="" :
@@ -144,10 +148,12 @@ for i in range(set_num):
     train_labels = []
     for j in range(set_num):
         for item in data_set[j]:
+
             name = item.lstrip("\'").split("_", 1)[0]
             temp = item.split(',')
             gender = name[-1]
             name=name[:2]
+
             if name in person_exclude:
                 continue
             if gender not in gender_include:
@@ -171,11 +177,22 @@ for i in range(set_num):
     #add extra train data to train_set
 
     #额外训练集加入到train_set
-    if extra_train_set_path!="" :
+    if len(extra_train_set_path)!=0 :
         for item in extra_train_set.data:
             temp=item.strip().split(',')
             name = temp[0].strip('\'').split('_')
             person=name[0][:2]
+            if "Ses" in name[0]:
+                fea = [float(index) for index in temp[1:-1]]
+                emo_label=temp[-1]
+                if emo_label not in emo_classes.keys():
+                    continue
+                onehot_label = np.zeros(class_num)
+                onehot_label[emo_classes[emo_label]] = 1         
+                train_set.append(fea)
+                train_labels.append(onehot_label)
+                continue                
+
             if person in person_exclude:
                 continue
             elif person.lstrip('0')==str(i+1):
@@ -264,7 +281,7 @@ for i in range(set_num):
     print('which_copy:%s'% which_copy)
     print('gender_include:%s' % (gender_include))
     print('person_exclude:%s'%(person_exclude))
-    if extra_train_set_path!="" :
+    if len(extra_train_set_path)!=0 :
         print("extra_train_set:%s"%extra_train_set_path)
     if extra_val_set_path!="" :
         print("extra_val_set:%s"%extra_val_set_path)
@@ -417,7 +434,7 @@ for i in range(set_num):
                 print('\tacc_val = %f' % (acc_val[epoch]))
                 if save_model == 1:
                    if acc_val_max < acc_val[epoch]:
-                  # if epoch %2==0 :
+                   #if epoch %2==0 :
                         rt = saver.save(sess, modelpath)
                         acc_val_max = acc_val[epoch]
                         print('model saved in %s' % (rt))
