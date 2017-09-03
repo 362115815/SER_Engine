@@ -10,7 +10,7 @@ import sys
 import datetime
 import data_reader as dr
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '15'
+os.environ['CUDA_VISIBLE_DEVICES'] = '10'
 '''
 This is an LSTM network building script
 '''
@@ -52,7 +52,7 @@ feadir = rootdir + '/feature'
 logdir = rootdir + '/log'
 modeldir = rootdir + '/model'
 
-extra_train_set_path=["/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise.arff"]
+extra_train_set_path=["/data/mm0105.chen/wjhan/xiaomin/feature/intern/new_buyinghe.arff","/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise.arff"]
 #"/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise.arff","/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
 extra_val_set_path=""#"/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise_all.arff"
 #config
@@ -82,9 +82,9 @@ db_include=['0']
 # 每个隐含层的节点数
 hidden_size = [1024,512]
 acc_train_epsilon= 0.98
-epoch_num =128
-_batch_size=1024
-learning_rate = 0.0005
+epoch_num =160
+_batch_size=512
+learning_rate = 0.0001
 
 # predefine
 
@@ -107,7 +107,7 @@ if output_log == 1:
 print('*********************************************')
 print('******* Run LSTM %s ********' % (now.strftime('%Y-%m-%d %H:%M:%S')))
 print('*********************************************')
-print('Remark: Add new bulu noise')
+print('Remark: Add only buyinghe')
 
 
 #读入额外训练集
@@ -116,7 +116,6 @@ if len(extra_train_set_path)!=0 :
         extra_train_set=dr.ArffReader(extra_train_set_path)
 
 print(len(extra_train_set.data))
-
 #读入额外验证集
 if extra_val_set_path!="" :
     extra_val_set=dr.ArffReader(extra_val_set_path)
@@ -192,7 +191,16 @@ for i in range(set_num):
                 train_set.append(fea)
                 train_labels.append(onehot_label)
                 continue                
-
+            if "_C_" in temp[0]:
+                fea = [float(index) for index in temp[1:-1]]
+                emo_index=name[-1]
+                if(emo_index=='4'):
+                    emo_index=3
+                onehot_label = np.zeros(class_num)
+                onehot_label[int(emo_index)] = 1         
+                train_set.append(fea)
+                train_labels.append(onehot_label)
+                continue
             if person in person_exclude:
                 continue
             elif person.lstrip('0')==str(i+1):
