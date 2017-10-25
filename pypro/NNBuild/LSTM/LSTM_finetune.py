@@ -15,7 +15,7 @@ out_data=0
 output_log=1
 save_model=1
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '11'
 '''
 This is an LSTM network building script
 '''
@@ -32,7 +32,7 @@ class CDataSet():
     def _shuffle(self):
         c = list(zip(self.data, self.labels))
         random.shuffle(c)
-        self.data, self.labels= zip(*c)
+        self.data[:], self.labels[:]= zip(*c)
 
     def next_batch(self, batch_size):  # 如果到达末尾，则把batch_size返回0，否则返回所读取的batch_size
         """ Return a batch of data. When dataset end is reached, start over.
@@ -59,6 +59,43 @@ class CDataSet():
         self.batch_id = end_id
         return batch_data, batch_labels,num 
 
+
+def start_session_ckpt(model_dir):
+    global_step = tf.Variable(0, name = 'global_step', trainable = False)   
+    #freeze之前必须明确哪个是输出结点,也就是我们要得到推论结果的结点  
+    #输出结点可以看我们模型的定义  
+    #只有定义了输出结点,freeze才会把得到输出结点所必要的结点都保存下来,或者哪些结点可以丢弃  
+    #所以,output_node_names必须根据不同的网络进行修改  
+
+    # 加载模型参数
+    print(' [*] Reading checkpoints...')
+    ckpt = tf.train.get_checkpoint_state(model_dir)        
+
+    if ckpt and ckpt.model_checkpoint_path:
+        #这里做了相对路径处理 比较方便移植
+        ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+        global_step = ckpt.model_checkpoint_path.split('/')[-1]\
+                                                .split('-')[-1]
+        print('Loading success, global_step is %s' % global_step)
+    else:
+        print(' [*] Failed to find a checkpoint')
+        return -1
+    # We import the meta graph and retrive a Saver   
+    #  We clear the devices, to allow TensorFlow to 
+    # control on the loading where it wants operations to be calculated  
+    print('tensorflow version:%s'%str(tf.__version__))
+    saver = tf.train.import_meta_graph(os.path.join(model_dir,ckpt_name) + '.meta',clear_devices=True)
+    #creat session
+    sess = tf.InteractiveSession()
+    #init vars
+    init = tf.group(tf.global_variables_initializer(), 
+                    tf.local_variables_initializer())
+    sess.run(init)
+    #import saver vars
+    saver.restore(sess, os.path.join(model_dir, ckpt_name)) 
+    return sess   
+
+
 # setting path
 
 rootdir = '/data/mm0105.chen/wjhan/xiaomin'
@@ -66,7 +103,7 @@ tempdatadir='/data/mm0105.chen/wjhan/xiaomin/tempdata'
 feadir = rootdir + '/feature'
 logdir = rootdir + '/log'
 modeldir = rootdir + '/model'
-extra_train_set_path=["/data/mm0105.chen/wjhan/dzy/LSTM/feature/IEMObyxiomin/denoise/IEMO.arff"]#["/data/mm0105.chen/wjhan/dzy/LSTM/feature/IEMObyxiomin/denoise/IEMO.arff"]
+extra_train_set_path=[]#["/data/mm0105.chen/wjhan/dzy/LSTM/feature/IEMObyxiomin/denoise/IEMO.arff"]#["/data/mm0105.chen/wjhan/dzy/LSTM/feature/IEMObyxiomin/denoise/IEMO.arff"]
 #"/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise.arff","/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8/iemo.arff"
 extra_val_set_path=""#"/data/mm0105.chen/wjhan/xiaomin/feature/intern_noise/intern_noise_all.arff"
 #config
@@ -78,8 +115,8 @@ timestep_size = 1
 corpus ='intern'
 which_copy='byperson_denoise'
 do_dropout=1
-_keep_prob=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95,0.98]
-is_shuffle=True
+_keep_prob=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95]
+
 gender_include = ['M','F']
 
 
@@ -119,11 +156,9 @@ if output_log == 1:
 print('*********************************************')
 print('******* Run LSTM %s ********' % (now.strftime('%Y-%m-%d %H:%M:%S')))
 print('*********************************************')
-if is_shuffle:
-    print("SHUFFLE HAS NO REPEAT!")
+print("SHUFFLE HAS REPEAT!")
 
-else:
-    print("NO SHUFFLE!")
+
 
 #读入额外训练集
 if len(extra_train_set_path)!=0 :
@@ -380,186 +415,96 @@ for i in range(set_num):
     print('db_include:%s'%(db_include))
 
 
+    # pre-trained model load
+    
+    model_dir="/data/mm0105.chen/wjhan/xiaomin/model/2017-10-18_16_49_46_cv2"
 
-    # network define
-    g = tf.Graph()
-    with g.as_default():
+    sess=start_session_ckpt(model_dir)
 
-        train_mean = tf.constant(mu, name="mu", dtype="float")
-        train_var = tf.constant(variance, name="var", dtype="float")
+    graph=sess.graph
+    #for op in graph.get_operations():
+        #print(op.name)
 
-        batch_size = tf.placeholder(tf.int32,name='batch_size') 
-        x = tf.placeholder('float', [None, fea_dim], name='input')
-        y_ = tf.placeholder('float', [None, class_num], name='label')
-        x_lengths=tf.placeholder('int32',[None],name='x_lengths')
-        keep_prob=tf.placeholder(tf.float32,name='keep_prob')
-        # do z-socre
-        x_normalized=tf.nn.batch_normalization(x, train_mean, train_var, 0, 2, 0.001, name="normalize")
-      #  print(type(x_normalized))
-      #  print(x_normalized.shape)
-      #  exit()
+    with open(tempdatadir+'/graph.txt','w') as fin:   
+        for op in graph.get_operations():
+            fin.write(str(op.name))
+            fin.write('\n')
+            fin.write(str(op.values()))
 
+        #fin.write(str(sess.graph_def))
+        #for op in sess.graph.get_operations():  
+            #fin.write(op.name,op.values())  
 
-        #x_panding=tf.Variable([[[2,3],[4,5]]],validate_shape=False,dtype=tf.float32,name='x_panding')
-       # x_panding=tf.Variable([x_normalized],validate_shape=False)
-      #  x_panding.assign([x_normalized])
-       # x_panding=tf.assign(x_panding,[x_normalized],validate_shape= False)
-        x_panding=tf.reshape(x_normalized,[1,-1,fea_dim])
-      #  print(np.shape(x_panding))
-        
-        hidden_layer_num=len(hidden_size)
-        hidden_layer=[]
+    graph=sess.graph
+    x = graph.get_tensor_by_name('input:0')  
+    y = graph.get_tensor_by_name('predict:0')
+    y_=graph.get_tensor_by_name('label:0')
+    x_lengths=graph.get_tensor_by_name('x_lengths:0')
+    batch_size=graph.get_tensor_by_name('batch_size:0')
+    keep_prob=graph.get_tensor_by_name('keep_prob:0')
 
-        for h_l in range(hidden_layer_num):
-            # add an LSTM layer
-            lstm_cell = rnn.BasicLSTMCell(num_units=hidden_size[h_l], forget_bias=1.0, state_is_tuple=True)
-            # add dropout layer
-            if do_dropout==1:
-                lstm_cell = rnn.DropoutWrapper(cell=lstm_cell, input_keep_prob=1.0, output_keep_prob=keep_prob)
-            hidden_layer.append(lstm_cell)
+    optimizer=graph.get_operation_by_name('train_op')
 
+    accuracy=graph.get_tensor_by_name('accuracy:0')
+    cost=graph.get_tensor_by_name('cost:0')
 
-        # 调用 MultiRNNCell 来实现多层LSTM
-        # 
-        mlstm_cell = rnn.MultiRNNCell(hidden_layer, state_is_tuple=True)
+   
 
-        # 用全零来初始化state
-        
-        init_state=mlstm_cell.zero_state(batch_size, dtype=tf.float32)
-
-        outputs, last_states=tf.nn.dynamic_rnn(cell=mlstm_cell,dtype=tf.float32,
-        inputs= x_panding, initial_state=init_state, time_major=True, sequence_length=x_lengths)
-
-        h_state=last_states[-1][-1]
-
-        W = tf.Variable(tf.truncated_normal([hidden_size[-1], class_num], stddev=0.1), dtype=tf.float32,name='W_output')
-        bias = tf.Variable(tf.constant(0.1,shape=[class_num]), dtype=tf.float32,name='b_output')
-        y = tf.nn.softmax(tf.matmul(h_state, W) + bias, name='predict')
-
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y, labels=y_))
-        global_step = tf.Variable(0)
-
-        decay_learning_rate=tf.train.exponential_decay(learning_rate,global_step,decay_steps=48,decay_rate=0.90,staircase=True)
+    avg_cost = []
+    acc_val = []
+    acc_train = []
 
 
+    if save_model == 1:
+        saver = tf.train.Saver()
+    acc_val_max=-1
 
-        optimizer = tf.train.AdamOptimizer(decay_learning_rate).minimize(cost,global_step=global_step)
 
-        init = tf.global_variables_initializer()
+    train_data = CDataSet(train_set, train_labels)
 
-        correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
-
-        # run epoch
+    #run epoch
+    
+    for epoch in range(epoch_num):
+        print("\nStrart Epoch %d traing:" % (epoch))
         if save_model == 1:
-            saver = tf.train.Saver()
-        acc_val_max=-1
+            modelpath = cv_dir + '/model' + str(epoch) + '.ckpt'
+        batch_num = 0
+        batch_cost = 0
+        if epoch >=len(_keep_prob):
+            keep_prob_index=-1
+        else:
+            keep_prob_index=epoch
+        while True:
+            batch = train_data.next_batch(_batch_size)
+            # print('\tbatch_num=%d,batch_size=%d'%(batch_num,batch[2]))
+            if batch[2] == 0:
+                break    
 
-        train_data = CDataSet(train_set, train_labels,shuffle=is_shuffle)
-
-        if out_data==1:
-            fout=open(tempdatadir+'/batch_train_data.txt','w')
-
-
-
-        with tf.Session() as sess:
-            sess.run(init)
-            avg_cost = []
-            acc_val = []
-            acc_train = []
-            if save_model == 1:
-                modelpath = cv_dir + '/modelinit.ckpt'
-                saver.save(sess, modelpath, global_step=0)
-            for epoch in range(epoch_num):
-                #global_step=epoch
-                print("\nStrart Epoch %d traing:" % (epoch))
-                if out_data==1:
-                    fout.write("Epoch %d\n"%epoch)
-
-
-                if save_model == 1:
-                    modelpath = cv_dir + '/model' + str(epoch) + '.ckpt'
-                batch_num = 0
-                batch_cost = 0
-                if epoch >=len(_keep_prob):
-                    keep_prob_index=-1
-                else:
-                    keep_prob_index=epoch
-                print("current learning rate: %f"%decay_learning_rate.eval())
-                print("global step:%d"%global_step.eval())
-                if do_dropout==1:
-                    print("keep_prob:%f"%_keep_prob[keep_prob_index])
-                while True:
-                    batch = train_data.next_batch(_batch_size)
-                    # print('\tbatch_num=%d,batch_size=%d'%(batch_num,batch[2]))
-                    if batch[2] == 0:
-                        #exit()
-                        break
-                   # print(batch[2])
-                    if out_data==1:
-                        fout.write('batch_size:%d\n'%batch[2])
-                        for item in batch[0]:
-                            print(item)
-                            for temp in item:
-                                fout.write(str(temp))
-                                fout.write(' ')
-                            fout.write('\n')
-                    
-                    #exit()
-
-                   ##test
-                    '''
-                    o,h = sess.run([outputs, last_states], feed_dict={x: batch[0], y_:batch[1],
-                        x_lengths:np.ones(batch[2], dtype='int'),batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
-                    print('o=')
-                    print(o)
-                    print('\n\n')
-                    print('h=')
-                    print(h)
-                    print('\n\n')
-                    print(h[-1][-1])
-                    '''
-                    '''
-                    o1,o= sess.run([x_normalized,x_panding], feed_dict={x: batch[0], y_:batch[1],
-                        x_lengths:np.ones(batch[2], dtype='int'),batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
-                    print('o1=')
-                    print(o1)
-                    print('o=')
-                    print(o)             
-                    exit()
-                    '''
-                    #print("current learning rate: %f"%decay_learning_rate.eval())
-                    #print("global step:%d"%global_step.eval())
-                    _,c=sess.run([optimizer, cost], feed_dict={x: batch[0], y_:batch[1],
-                    x_lengths:np.ones(batch[2], dtype='int'),batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
-                    batch_num = batch_num + 1
-                    batch_cost = (batch_num - 1) / batch_num * batch_cost + c / batch_num
-                avg_cost.append(batch_cost)
-                acc_val.append(sess.run(accuracy, feed_dict={x: val_set, y_: val_labels, x_lengths :np.ones(len(val_labels),dtype='int'),batch_size:len(val_labels),keep_prob:1.0}))
-                acc_train.append(sess.run(accuracy, feed_dict={x:train_set, y_: train_labels, x_lengths:np.ones(len(train_labels),dtype='int'),batch_size:len(train_labels),keep_prob:1.0}))
-                print('Epoch %d finished' % (epoch))
-                print('\tavg_cost = %f' % (avg_cost[epoch]))
-                print('\tacc_train = %f' % (acc_train[epoch]))
-                print('\tacc_val = %f' % (acc_val[epoch]))
-                if save_model == 1:
-                   if acc_val_max < acc_val[epoch]:
-                   #if epoch %2==0 :
-                        rt = saver.save(sess, modelpath)
-                        acc_val_max = acc_val[epoch]
-                        print('model saved in %s' % (rt))
-                        print('packing model to .pb format')
-
-                if acc_train[epoch] > acc_train_epsilon:
-                    break
-        acc_val_cv.append(acc_val[np.argmax(acc_val)])
-        acc_train_cv.append( acc_train[np.argmax(acc_val)])
-        if out_data==1:
-            fout.close()
+            _,c=sess.run([optimizer, cost], feed_dict={x: batch[0], y_:batch[1],
+            x_lengths:np.ones(batch[2], dtype='int'),batch_size:batch[2],keep_prob:_keep_prob[keep_prob_index]})
+            batch_num = batch_num + 1
+            batch_cost = (batch_num - 1) / batch_num * batch_cost + c / batch_num
+        avg_cost.append(batch_cost)
+        acc_val.append(sess.run(accuracy, feed_dict={x: val_set, y_: val_labels, x_lengths :np.ones(len(val_labels),dtype='int'),batch_size:len(val_labels),keep_prob:1.0}))
+        acc_train.append(sess.run(accuracy, feed_dict={x: train_set, y_: train_labels, x_lengths:np.ones(len(train_labels),dtype='int'),batch_size:len(train_labels),keep_prob:1.0}))
+        print('Epoch %d finished' % (epoch))
+        print('\tavg_cost = %f' % (avg_cost[epoch]))
+        print('\tacc_train = %f' % (acc_train[epoch]))
+        print('\tacc_val = %f' % (acc_val[epoch]))
+        if save_model == 1:
+            if acc_val_max < acc_val[epoch]:
+                rt = saver.save(sess, modelpath)
+                acc_val_max = acc_val[epoch]
+                print('model saved in %s' % (rt))
+        if acc_train[epoch] > acc_train_epsilon:
+            break
+    acc_val_cv.append(acc_val[np.argmax(acc_val)])
+    acc_train_cv.append(acc_train[np.argmax(acc_val)])
     print('acc_train on cv %d = %f' % (i, acc_train_cv[-1]))
     print('acc_val on cv %d = %f' % (i, acc_val_cv[-1]))
-
     print('CV %d finish ' % (i))
-    #exit()
+    sess.close()
+    tf.reset_default_graph()  
 print('CV finished.\navg_acc_train=%f,avg_acc_val=%f' % (np.average(acc_train_cv), np.average(acc_val_cv)))
 print('CV finished.\n avg_acc_val=%f'%np.average(acc_val_cv))
 print('Train accuracy of each CV: %s'%str(acc_train_cv))

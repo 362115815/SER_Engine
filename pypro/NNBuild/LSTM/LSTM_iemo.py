@@ -9,14 +9,14 @@ import os
 import sys
 import datetime
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 '''
 This is an LSTM network building script
 '''
 
 class CDataSet():
-    def __init__(self, data, labels, shuffle=False):
+    def __init__(self, data, labels, shuffle=True):
         if len(data) == 0 or len(data) != len(labels):
             raise ValueError('data为空或data与label长度不匹配')
         self.data = data
@@ -27,7 +27,7 @@ class CDataSet():
     def _shuffle(self):
         c = list(zip(self.data, self.labels))
         random.shuffle(c)
-        self.data[:], self.labels[:] = zip(*c)
+        self.data, self.labels = zip(*c)
 
     def next_batch(self, batch_size):  # 如果到达末尾，则把batch_size返回0，否则返回所读取的batch_size
         """ Return a batch of data. When dataset end is reached, start over.
@@ -61,26 +61,26 @@ save_model=1
 gender_include = 'M,F'
 timestep_size = 1
 corpus ='iemo'
-which_copy='washedS8'
+which_copy='byperson_denoise'
 do_dropout=1
-_keep_prob=[0.5,0.5,0.5,0.5,0.2,0.1]
+_keep_prob=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.98]
 
 # 每个隐含层的节点数
-hidden_size = [512]
+hidden_size = [1024,512]
 # LSTM layer 的层数
 layer_num = 1
 acc_train_epsilon= 0.98
-epoch_num = 1024
+epoch_num = 128
 _batch_size=256
 learning_rate = 0.0005
 # predefine
 
 set_num = 10
 fea_dim = 88
-emo_classes = {'ang': 0, 'hap': 1, 'exc': 1, 'neu': 2, 'sad': 3}
+emo_classes = {'ang': 0, 'hap': 1, 'exc': 1, 'neu': 2, 'sad': 3,'nor':2}
 
 
-class_num = len(emo_classes)-1
+class_num = len(emo_classes)-2
 
 now = datetime.datetime.now()
 
@@ -93,14 +93,19 @@ if output_log == 1:
 print('*********************************************')
 print('******* Run LSTM %s ********' % (now.strftime('%Y-%m-%d %H:%M:%S')))
 print('*********************************************')
-
+print('SHUFFLE HAS NO REPEAT!')
 
 # read data
 data_set = []
+count=0
 for i in range(set_num):
     filepath = feadir+'/'+corpus+ '/' +which_copy+'/'+ str(i) + '.txt'
     with open(filepath, 'r') as fin:
-        data_set.append(fin.readlines())
+        temp=fin.readlines()
+        count=count+len(temp)
+        data_set.append(temp)
+print(count)
+#exit()
 
 # CV
 
@@ -128,10 +133,14 @@ for i in range(set_num):
             temp = item.split(',')
             gender = name[-1]
             if gender not in gender_include:
+                print('gender:%s'%gender)
+                #exit()
                 continue
             fea = [float(index) for index in temp[1:-1]]
             emo_label=temp[-1].strip()
             if emo_label not in emo_classes.keys():
+                print('emo_label:%s'%emo_label)
+                #exit()
                 continue
             onehot_label = np.zeros(class_num)
             onehot_label[emo_classes[emo_label]] = 1
@@ -183,11 +192,11 @@ for i in range(set_num):
         train_mean = tf.constant(mu, name="mu", dtype="float")
         train_var = tf.constant(variance, name="var", dtype="float")
 
-        batch_size = tf.placeholder(tf.int32) 
+        batch_size = tf.placeholder(tf.int32,name='batch_size') 
         x = tf.placeholder('float', [None, fea_dim], name='input')
         y_ = tf.placeholder('float', [None, class_num], name='label')
-        x_lengths=tf.placeholder('int32',[None])
-        keep_prob=tf.placeholder(tf.float32)
+        x_lengths=tf.placeholder('int32',[None],name='x_lengths')
+        keep_prob=tf.placeholder(tf.float32,name="keep_prob")
         # do z-socre
         x_normalized = tf.nn.batch_normalization(x, train_mean, train_var, 0, 2, 0.001, name="normalize")
 
@@ -226,13 +235,13 @@ for i in range(set_num):
         bias = tf.Variable(tf.constant(0.1,shape=[class_num]), dtype=tf.float32)
         y = tf.nn.softmax(tf.matmul(h_state, W) + bias, name='predict')
 
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y, labels=y_))
-        optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost)
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y, labels=y_),name='cost')
+        optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost,name='train_op')
 
         init = tf.global_variables_initializer()
 
         correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'))
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, 'float'),name='accuracy')
 
         # run epoch
         if save_model == 1:

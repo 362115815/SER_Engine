@@ -15,7 +15,7 @@ out_data=0
 output_log=1
 save_model=1
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '6'
+os.environ['CUDA_VISIBLE_DEVICES'] = '5'
 '''
 This is an LSTM network building script
 '''
@@ -79,7 +79,7 @@ corpus ='intern'
 which_copy='byperson_denoise'
 do_dropout=1
 _keep_prob=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95,0.98]
-is_shuffle=True
+is_shuffle=False
 gender_include = ['M','F']
 
 
@@ -101,7 +101,7 @@ learning_rate = 0.003
 # predefine
 
 set_num = 29
-fea_dim = 88
+fea_dim = 89
 emo_classes = {'ang': 0, 'hap': 1, 'nor': 2, 'sad': 3,'neu':2,'exc':1}
 
 class_num =4
@@ -124,6 +124,13 @@ if is_shuffle:
 
 else:
     print("NO SHUFFLE!")
+
+################ Message print #################
+
+print("add gender as feature")
+print("decay_learning_rate disabled.")
+
+################################################
 
 #读入额外训练集
 if len(extra_train_set_path)!=0 :
@@ -216,6 +223,16 @@ for i in range(set_num):
             if gender not in  gender_include:
                 continue
             fea = [float(index) for index in temp[1:-1]]
+
+            #add gender as a feature, 0 Male, 1 Female
+            if gender=="M":
+                fea.append(0)
+
+            elif gender=="F":
+                fea.append(1)
+            else:
+                print("gender info is invalid. gender: %s"%gender)
+                exit()
             emo_label = temp[0].strip("\'").split("_")[-1]
             if emo_label not in emo_classes.keys():
                 continue
@@ -240,8 +257,21 @@ for i in range(set_num):
             temp=item.strip().split(',')
             name = temp[0].strip('\'').split('_')
             person=name[0][:2]
+            gender = name[0][-1]
+            fea = [float(index) for index in temp[1:-1]]
+            #add gender as a feature, 0 Male, 1 Female
+            if gender=="M":
+                fea.append(0)
+
+            elif gender=="F":
+                fea.append(1)
+            else:
+                print("gender info is invalid. gender: %s"%gender)
+                exit()
+
+
             if "Ses" in name[0]:
-                fea = [float(index) for index in temp[1:-1]]
+                
                 emo_label=temp[-1]
                 emo_label=temp[0].strip('\'').split('_')[-1]
                 if emo_label not in emo_classes.keys():
@@ -252,7 +282,6 @@ for i in range(set_num):
                 train_labels.append(onehot_label)
                 continue                
             if "_C_" in temp[0]:
-                fea = [float(index) for index in temp[1:-1]]
                 emo_index=name[-1]
                 if(emo_index=='4'):
                     emo_index=3
@@ -265,7 +294,8 @@ for i in range(set_num):
                 continue
             elif person.lstrip('0')==str(i+1):
                 continue
-            gender = name[0][-1]
+
+
             if gender not in gender_include:
                 continue
             scene=name[-3]
@@ -330,6 +360,11 @@ for i in range(set_num):
     val_labels = np.array(val_labels)
     train_set = np.array(train_set)
     train_labels = np.array(train_labels)
+    print("train_set size:%s"%str(np.shape(train_set)))
+    print("val_set size:%s"%str(np.shape(val_set)))
+
+    print(np.shape(train_set))
+
     if out_data==1:
         with open(tempdatadir+"/ori_train_set.txt",'w') as fout:
             for item in train_set:           
@@ -443,7 +478,7 @@ for i in range(set_num):
 
 
 
-        optimizer = tf.train.AdamOptimizer(decay_learning_rate).minimize(cost,global_step=global_step)
+        optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost,global_step=global_step)
 
         init = tf.global_variables_initializer()
 
