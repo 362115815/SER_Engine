@@ -1,0 +1,35 @@
+
+
+ps -ef|grep Server
+
+/mnt/sde1/ser/emoSpeechWork/SER_Server_Release/bin/SER_Server_vad /mnt/sde1/ser/emoSpeechWork/SER_Server_Release 6666 &
+
+nohup java -server -Xms2048m -Xmx2048m -Dspring.profiles.active=prd -jar /mnt/sde1/ser/emoSpeechWork/AppServer/AppServer-1.0.jar &
+
+scp /washedS8/*.txt mm0105.chen@109.105.1.123:/data/mm0105.chen/wjhan/xiaomin/feature/iemo/washedS8
+
+
+/mnt/sde1/ser/anaconda3/lib
+
+
+/home/emo/SER/SER_Server/SER_Engine/denoise/wav2pcm -f /home/emo/SER/SER_Server_Release/test_wav2/01M_scr10_re03_ang.wav
+
+
+/home/emo/SER/SER_Server/SER_Engine/denoise/IS127_161013.lix /home/emo/SER/SER_Server_Release/test_wav2/01M_scr10_re03_ang.pcm 0 1
+
+sess=tfm.start_session_ckpt()
+
+
+predict=tfm.run_lstm(sess,"/home/emo/SER/SER_Server/SER_Engine/tempdata/feature/01M_scr10_re03_ang.csv","/home/emo/SER/SER_Server/SER_Engine/tempdata/result/01M_scr10_re03_ang.predict")
+
+
+/home/emo/SER/SER_Server/SER_Engine/vad/energy_VAD "/home/emo/SER/validate_noise/1508477687744.wav" "/home/emo/SER/validate_noise/1508466991627_vad.wav" 1
+
+/home/emo/SER/SER_Server/SER_Engine/denoise/wav2pcm -f /home/emo/SER/validate_noise/1508466991627.wav
+
+
+
+SMILExtract -I "/data/mm0105.chen/wjhan/xiaomin/data/IEMOCAP/fea/Ses05M_impro02_F017_fea.wav" -C /data/mm0105.chen/wjhan/xiaomin/opensmile-2.3.0/config/gemaps/eGeMAPSv01a.conf -lldcsvoutput /data/mm0105.chen/wjhan/xiaomin/test.csv  -instname anger
+
+
+ls 打出全路径 ls | sed "s:^:`pwd`/: "

@@ -1,0 +1,932 @@
+file not exitst:/data/mm0105.chen/wjhan/dzy/LSTM/votetest1/2017-10-26_10_04_21_cv14/predict.txt
+file not exitst:/data/mm0105.chen/wjhan/dzy/LSTM/votetest1/2017-10-26_10_04_21_cv17/predict.txt
+file not exitst:/data/mm0105.chen/wjhan/dzy/LSTM/votetest1/2017-10-26_10_04_21_cv2/predict.txt
+file not exitst:/data/mm0105.chen/wjhan/dzy/LSTM/votetest1/2017-10-26_10_04_21_cv6/predict.txt
+file not exitst:/data/mm0105.chen/wjhan/dzy/LSTM/votetest1/2017-10-26_10_04_21_cv7/predict.txt
+file not exitst:/data/mm0105.chen/wjhan/dzy/LSTM/votetest1/2017-10-26_10_04_21_cv8/predict.txt
+
+
+==================== ============== ===================
+==================== Model from All ===================
+==================== ============== ===================
+
+
+===============Summary================
+
+
+max_cv:
+
+
+acc_average:0.474523
+acc_max:0.495747
+acc_min:0.400047
+acc_max_cv:17
+
+
+by_accuracy:
+
+
+right_num:2082
+total_num:4232
+accuracy after vote(by accuracy):0.491966
+right_num with acc_max_cv:3620
+right rate with acc_max_cv:0.855388
+
+
+by_argmax:
+
+
+right_num:2079
+total_num:4232
+accuracy after vote(by argmax):0.491257
+right_num with acc_max_cv:3613
+right rate with acc_max_cv:0.853733
+
+
+================ENUS===================
+
+
+-------------Meeting Room--------------
+max_cv:
+
+
+right_num:560
+total_num:1017
+accuracy:0.550639
+
+
+by_accuracy:
+
+
+right_num:561
+total_num:1017
+accuracy:0.551622
+right_num with acc_max_cv:847
+right rate with acc_max_cv:0.832842
+
+
+by_argmax:
+
+
+right_num:557
+total_num:1017
+accuracy:0.547689
+right_num with acc_max_cv:839
+right rate with acc_max_cv:0.824975
+
+
+----------------Office-----------------
+max_cv:
+
+
+right_num:268
+total_num:527
+accuracy:0.508539
+
+
+by_accuracy:
+
+
+right_num:269
+total_num:527
+accuracy:0.510436
+right_num with acc_max_cv:461
+right rate with acc_max_cv:0.874763
+
+
+by_argmax:
+
+
+right_num:267
+total_num:527
+accuracy:0.506641
+right_num with acc_max_cv:461
+right rate with acc_max_cv:0.874763
+
+
+------------Shopping Mall--------------
+
+
+max_cv:
+
+
+right_num:233
+total_num:739
+accuracy:0.315291
+
+
+by_accuracy:
+
+
+right_num:252
+total_num:739
+accuracy:0.341001
+right_num with acc_max_cv:633
+right rate with acc_max_cv:0.856563
+
+
+by_argmax:
+
+
+right_num:253
+total_num:739
+accuracy:0.342355
+right_num with acc_max_cv:635
+right rate with acc_max_cv:0.859269
+
+
+================Korea===================
+
+
+-------------Meeting Room--------------
+max_cv:
+
+
+right_num:360
+total_num:525
+accuracy:0.685714
+
+
+by_accuracy:
+
+
+right_num:349
+total_num:525
+accuracy:0.664762
+right_num with acc_max_cv:443
+right rate with acc_max_cv:0.843810
+
+
+by_argmax:
+
+
+right_num:350
+total_num:525
+accuracy:0.666667
+right_num with acc_max_cv:446
+right rate with acc_max_cv:0.849524
+
+
+----------------Office-----------------
+max_cv:
+
+
+right_num:365
+total_num:665
+accuracy:0.548872
+
+
+by_accuracy:
+
+
+right_num:355
+total_num:665
+accuracy:0.533835
+right_num with acc_max_cv:576
+right rate with acc_max_cv:0.866165
+
+
+by_argmax:
+
+
+right_num:354
+total_num:665
+accuracy:0.532331
+right_num with acc_max_cv:575
+right rate with acc_max_cv:0.864662
+
+
+------------Shopping Mall--------------
+
+
+max_cv:
+
+
+right_num:312
+total_num:759
+accuracy:0.411067
+
+
+by_accuracy:
+
+
+right_num:296
+total_num:759
+accuracy:0.389987
+right_num with acc_max_cv:660
+right rate with acc_max_cv:0.869565
+
+
+by_argmax:
+
+
+right_num:298
+total_num:759
+accuracy:0.392622
+right_num with acc_max_cv:657
+right rate with acc_max_cv:0.865613
+
+
+
+
+============ ======================= ================
+============ Model from Meeting Room ================
+============ ======================= ================
+
+
+
+
+cv84 doesn't in prediction set
+cv85 doesn't in prediction set
+cv86 doesn't in prediction set
+cv87 doesn't in prediction set
+cv88 doesn't in prediction set
+(34, 4232, 4)
+model_num:34
+
+
+===============Summary================
+
+
+max_cv:
+
+
+acc_average:0.472437
+acc_max:0.493384
+acc_min:0.400047
+acc_max_cv:21
+
+
+by_accuracy:
+
+
+right_num:2096
+total_num:4232
+accuracy after vote(by accuracy):0.495274
+right_num with acc_max_cv:3640
+right rate with acc_max_cv:0.860113
+
+
+by_argmax:
+
+
+right_num:2100
+total_num:4232
+accuracy after vote(by argmax):0.496219
+right_num with acc_max_cv:3650
+right rate with acc_max_cv:0.862476
+
+
+================ENUS===================
+
+
+-------------Meeting Room--------------
+max_cv:
+
+
+right_num:543
+total_num:1017
+accuracy:0.533923
+
+
+by_accuracy:
+
+
+right_num:565
+total_num:1017
+accuracy:0.555556
+right_num with acc_max_cv:830
+right rate with acc_max_cv:0.816126
+
+
+by_argmax:
+
+
+right_num:565
+total_num:1017
+accuracy:0.555556
+right_num with acc_max_cv:830
+right rate with acc_max_cv:0.816126
+
+
+----------------Office-----------------
+max_cv:
+
+
+right_num:278
+total_num:527
+accuracy:0.527514
+
+
+by_accuracy:
+
+
+right_num:271
+total_num:527
+accuracy:0.514231
+right_num with acc_max_cv:454
+right rate with acc_max_cv:0.861480
+
+
+by_argmax:
+
+
+right_num:271
+total_num:527
+accuracy:0.514231
+right_num with acc_max_cv:456
+right rate with acc_max_cv:0.865275
+
+
+------------Shopping Mall--------------
+
+
+max_cv:
+
+
+right_num:266
+total_num:739
+accuracy:0.359946
+
+
+by_accuracy:
+
+
+right_num:252
+total_num:739
+accuracy:0.341001
+right_num with acc_max_cv:660
+right rate with acc_max_cv:0.893099
+
+
+by_argmax:
+
+
+right_num:253
+total_num:739
+accuracy:0.342355
+right_num with acc_max_cv:655
+right rate with acc_max_cv:0.886333
+
+
+================Korea===================
+
+
+-------------Meeting Room--------------
+max_cv:
+
+
+right_num:348
+total_num:525
+accuracy:0.662857
+
+
+by_accuracy:
+
+
+right_num:351
+total_num:525
+accuracy:0.668571
+right_num with acc_max_cv:463
+right rate with acc_max_cv:0.881905
+
+
+by_argmax:
+
+
+right_num:353
+total_num:525
+accuracy:0.672381
+right_num with acc_max_cv:466
+right rate with acc_max_cv:0.887619
+
+
+----------------Office-----------------
+max_cv:
+
+
+right_num:365
+total_num:665
+accuracy:0.548872
+
+
+by_accuracy:
+
+
+right_num:355
+total_num:665
+accuracy:0.533835
+right_num with acc_max_cv:592
+right rate with acc_max_cv:0.890226
+
+
+by_argmax:
+
+
+right_num:354
+total_num:665
+accuracy:0.532331
+right_num with acc_max_cv:595
+right rate with acc_max_cv:0.894737
+
+
+------------Shopping Mall--------------
+
+
+max_cv:
+
+
+right_num:288
+total_num:759
+accuracy:0.379447
+
+
+by_accuracy:
+
+
+right_num:302
+total_num:759
+accuracy:0.397892
+right_num with acc_max_cv:641
+right rate with acc_max_cv:0.844532
+
+
+by_argmax:
+
+
+right_num:304
+total_num:759
+accuracy:0.400527
+right_num with acc_max_cv:648
+right rate with acc_max_cv:0.853755
+
+
+
+
+================ ================= ==================
+================ Model from Office ==================
+================ ================= ==================
+
+
+
+
+cv89 doesn't in prediction set
+cv90 doesn't in prediction set
+cv91 doesn't in prediction set
+cv92 doesn't in prediction set
+cv93 doesn't in prediction set
+(25, 4232, 4)
+model_num:25
+
+
+===============Summary================
+
+
+max_cv:
+
+
+acc_average:0.473563
+acc_max:0.487713
+acc_min:0.401701
+acc_max_cv:0
+
+
+by_accuracy:
+
+
+right_num:2070
+total_num:4232
+accuracy after vote(by accuracy):0.489130
+right_num with acc_max_cv:3398
+right rate with acc_max_cv:0.802930
+
+
+by_argmax:
+
+
+right_num:2059
+total_num:4232
+accuracy after vote(by argmax):0.486531
+right_num with acc_max_cv:3416
+right rate with acc_max_cv:0.807183
+
+
+================ENUS===================
+
+
+-------------Meeting Room--------------
+max_cv:
+
+
+right_num:520
+total_num:1017
+accuracy:0.511308
+
+
+by_accuracy:
+
+
+right_num:564
+total_num:1017
+accuracy:0.554572
+right_num with acc_max_cv:789
+right rate with acc_max_cv:0.775811
+
+
+by_argmax:
+
+
+right_num:554
+total_num:1017
+accuracy:0.544739
+right_num with acc_max_cv:799
+right rate with acc_max_cv:0.785644
+
+
+----------------Office-----------------
+max_cv:
+
+
+right_num:294
+total_num:527
+accuracy:0.557875
+
+
+by_accuracy:
+
+
+right_num:268
+total_num:527
+accuracy:0.508539
+right_num with acc_max_cv:412
+right rate with acc_max_cv:0.781784
+
+
+by_argmax:
+
+
+right_num:268
+total_num:527
+accuracy:0.508539
+right_num with acc_max_cv:414
+right rate with acc_max_cv:0.785579
+
+
+------------Shopping Mall--------------
+
+
+max_cv:
+
+
+right_num:265
+total_num:739
+accuracy:0.358593
+
+
+by_accuracy:
+
+
+right_num:247
+total_num:739
+accuracy:0.334235
+right_num with acc_max_cv:626
+right rate with acc_max_cv:0.847091
+
+
+by_argmax:
+
+
+right_num:246
+total_num:739
+accuracy:0.332882
+right_num with acc_max_cv:623
+right rate with acc_max_cv:0.843031
+
+
+================Korea===================
+
+
+-------------Meeting Room--------------
+max_cv:
+
+
+right_num:333
+total_num:525
+accuracy:0.634286
+
+
+by_accuracy:
+
+
+right_num:345
+total_num:525
+accuracy:0.657143
+right_num with acc_max_cv:433
+right rate with acc_max_cv:0.824762
+
+
+by_argmax:
+
+
+right_num:344
+total_num:525
+accuracy:0.655238
+right_num with acc_max_cv:436
+right rate with acc_max_cv:0.830476
+
+
+----------------Office-----------------
+max_cv:
+
+
+right_num:350
+total_num:665
+accuracy:0.526316
+
+
+by_accuracy:
+
+
+right_num:348
+total_num:665
+accuracy:0.523308
+right_num with acc_max_cv:549
+right rate with acc_max_cv:0.825564
+
+
+by_argmax:
+
+
+right_num:349
+total_num:665
+accuracy:0.524812
+right_num with acc_max_cv:553
+right rate with acc_max_cv:0.831579
+
+
+------------Shopping Mall--------------
+
+
+max_cv:
+
+
+right_num:302
+total_num:759
+accuracy:0.397892
+
+
+by_accuracy:
+
+
+right_num:298
+total_num:759
+accuracy:0.392622
+right_num with acc_max_cv:589
+right rate with acc_max_cv:0.776021
+
+
+by_argmax:
+
+
+right_num:298
+total_num:759
+accuracy:0.392622
+right_num with acc_max_cv:591
+right rate with acc_max_cv:0.778656
+
+
+
+
+============ ======================== ===============
+============ Model from Shopping Mall ===============
+============ ======================== ===============
+
+
+
+
+cv94 doesn't in prediction set
+cv95 doesn't in prediction set
+cv96 doesn't in prediction set
+cv97 doesn't in prediction set
+cv98 doesn't in prediction set
+(18, 4232, 4)
+model_num:18
+
+
+===============Summary================
+
+
+max_cv:
+
+
+acc_average:0.479508
+acc_max:0.495747
+acc_min:0.463374
+acc_max_cv:0
+
+
+by_accuracy:
+
+
+right_num:2078
+total_num:4232
+accuracy after vote(by accuracy):0.491021
+right_num with acc_max_cv:3605
+right rate with acc_max_cv:0.851843
+
+
+by_argmax:
+
+
+right_num:2073
+total_num:4232
+accuracy after vote(by argmax):0.489839
+right_num with acc_max_cv:3597
+right rate with acc_max_cv:0.849953
+
+
+================ENUS===================
+
+
+-------------Meeting Room--------------
+max_cv:
+
+
+right_num:560
+total_num:1017
+accuracy:0.550639
+
+
+by_accuracy:
+
+
+right_num:553
+total_num:1017
+accuracy:0.543756
+right_num with acc_max_cv:835
+right rate with acc_max_cv:0.821042
+
+
+by_argmax:
+
+
+right_num:545
+total_num:1017
+accuracy:0.535890
+right_num with acc_max_cv:831
+right rate with acc_max_cv:0.817109
+
+
+----------------Office-----------------
+max_cv:
+
+
+right_num:268
+total_num:527
+accuracy:0.508539
+
+
+by_accuracy:
+
+
+right_num:271
+total_num:527
+accuracy:0.514231
+right_num with acc_max_cv:457
+right rate with acc_max_cv:0.867173
+
+
+by_argmax:
+
+
+right_num:272
+total_num:527
+accuracy:0.516129
+right_num with acc_max_cv:462
+right rate with acc_max_cv:0.876660
+
+
+------------Shopping Mall--------------
+
+
+max_cv:
+
+
+right_num:233
+total_num:739
+accuracy:0.315291
+
+
+by_accuracy:
+
+
+right_num:256
+total_num:739
+accuracy:0.346414
+right_num with acc_max_cv:631
+right rate with acc_max_cv:0.853857
+
+
+by_argmax:
+
+
+right_num:251
+total_num:739
+accuracy:0.339648
+right_num with acc_max_cv:634
+right rate with acc_max_cv:0.857916
+
+
+================Korea===================
+
+
+-------------Meeting Room--------------
+max_cv:
+
+
+right_num:360
+total_num:525
+accuracy:0.685714
+
+
+by_accuracy:
+
+
+right_num:348
+total_num:525
+accuracy:0.662857
+right_num with acc_max_cv:454
+right rate with acc_max_cv:0.864762
+
+
+by_argmax:
+
+
+right_num:353
+total_num:525
+accuracy:0.672381
+right_num with acc_max_cv:453
+right rate with acc_max_cv:0.862857
+
+
+----------------Office-----------------
+max_cv:
+
+
+right_num:365
+total_num:665
+accuracy:0.548872
+
+
+by_accuracy:
+
+
+right_num:352
+total_num:665
+accuracy:0.529323
+right_num with acc_max_cv:578
+right rate with acc_max_cv:0.869173
+
+
+by_argmax:
+
+
+right_num:352
+total_num:665
+accuracy:0.529323
+right_num with acc_max_cv:576
+right rate with acc_max_cv:0.866165
+
+
+------------Shopping Mall--------------
+
+
+max_cv:
+
+
+right_num:312
+total_num:759
+accuracy:0.411067
+
+
+by_accuracy:
+
+
+right_num:298
+total_num:759
+accuracy:0.392622
+right_num with acc_max_cv:650
+right rate with acc_max_cv:0.856390
+
+
+by_argmax:
+
+
+right_num:300
+total_num:759
+accuracy:0.395257
+right_num with acc_max_cv:641
+right rate with acc_max_cv:0.844532
+
+
+count:78
